@@ -4,8 +4,7 @@ export const API_KEY = `${process.env.NEXT_PUBLIC_APP_KEY}`
 export const API_URL = `${process.env.NEXT_PUBLIC_API_URL}`
 export const APP_INFO: AppInfo = {
   title: 'コスモスK',
-  description: '',
-  copyright: '',
+  description: '行政書士試験 記述式の出題・採点トレーニング。40字の答案を書いて即採点。',  copyright: '',
   privacy_policy: '',
   default_language: 'ja',
   disable_session_same_site: false, // set it to true if you want to embed the chatbot in an iframe
