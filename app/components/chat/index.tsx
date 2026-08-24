@@ -224,8 +224,7 @@ const Chat: FC<IChatProps> = ({
                 autoSize
               />
               <div className="absolute bottom-2 right-6 flex items-center h-8">
-                <div className={`${s.count} mr-3 h-5 leading-5 text-sm bg-gray-50 text-gray-500 px-2 rounded`}>{query.trim().length}</div>
-                <Tooltip
+<div className={`${s.count} mr-3 h-5 leading-5 text-sm px-2 rounded-md ${query.length > 40 ? 'bg-red-50 text-red-600 font-bold' : 'bg-gray-50 text-gray-500'}`}>{query.length > 40 ? `${query.length}/40 +${query.length - 40}` : `${query.length}/40`}</div>                <Tooltip
                   selector='send-tip'
                   htmlContent={
                     <div>
