@@ -149,19 +149,51 @@ const Chat: FC<IChatProps> = ({
 
   return (
     <div className={cn(!feedbackDisabled && 'px-3.5', 'h-full')}>
+    <a href="/favorites" className="fixed z-20 top-3 right-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ お気に入り</a>
       {/* Chat List */}
       <div className="h-full space-y-[30px]">
-        {chatList.map((item) => {
+                {chatList.map((item, idx) => {
           if (item.isAnswer) {
             const isLast = item.id === chatList[chatList.length - 1].id
-            return <Answer
-              key={item.id}
-              item={item}
-              feedbackDisabled={feedbackDisabled}
-              onFeedback={onFeedback}
-              isResponding={isResponding && isLast}
-              suggestionClick={suggestionClick}
-            />
+            const prevUser = chatList[idx - 1]
+            const prevQ = chatList[idx - 2]
+            const canSave = !item.isOpeningStatement && !(isResponding && isLast) && !!prevUser && !prevUser.isAnswer
+            const saveFav = () => {
+              try {
+                const favs: { id: string; content: string; date: string }[] = JSON.parse(localStorage.getItem('cosmosk_favs') || '[]')
+                if (favs.some(f => f.id === item.id)) {
+                  notify({ type: 'info', message: 'この問題はすでに保存済みです', duration: 2000 })
+                  return
+                }
+                const content = [
+                  (prevQ && prevQ.isAnswer) ? `## 【問題】\n\n${prevQ.content}` : '',
+                  `## 【あなたの答案】\n\n${prevUser.content}`,
+                  `## 【採点結果】\n\n${item.content}`,
+                ].filter(Boolean).join('\n\n---\n\n')
+                favs.unshift({ id: item.id, content, date: new Date().toLocaleString('ja-JP') })
+                localStorage.setItem('cosmosk_favs', JSON.stringify(favs))
+                notify({ type: 'success', message: '⭐ お気に入りに保存しました', duration: 2000 })
+              }
+              catch {
+                notify({ type: 'error', message: '保存に失敗しました', duration: 2000 })
+              }
+            }
+            return (
+              <div key={item.id}>
+                <Answer
+                  item={item}
+                  feedbackDisabled={feedbackDisabled}
+                  onFeedback={onFeedback}
+                  isResponding={isResponding && isLast}
+                  suggestionClick={suggestionClick}
+                />
+                {canSave && (
+                  <div className="mt-2 ml-12">
+                    <button onClick={saveFav} className="text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ この問題を保存</button>
+                  </div>
+                )}
+              </div>
+            )
           }
           return (
             <Question
