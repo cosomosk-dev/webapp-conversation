@@ -157,7 +157,8 @@ const Chat: FC<IChatProps> = ({
             const isLast = item.id === chatList[chatList.length - 1].id
             const prevUser = chatList[idx - 1]
             const prevQ = chatList[idx - 2]
-            const canSave = !item.isOpeningStatement && !(isResponding && isLast) && !!prevUser && !prevUser.isAnswer
+                       const isDone = !item.isOpeningStatement && !(isResponding && isLast) && !!item.content && !!prevUser && !prevUser.isAnswer
+            const canSave = isDone && prevUser.content.trim() !== '出題スタート'
             const saveFav = () => {
               try {
                 const favs: { id: string; content: string; date: string }[] = JSON.parse(localStorage.getItem('cosmosk_favs') || '[]')
@@ -187,10 +188,12 @@ const Chat: FC<IChatProps> = ({
                   isResponding={isResponding && isLast}
                   suggestionClick={suggestionClick}
                 />
-                {canSave && (
-                  <div className="mt-2 ml-12">
-                    <button onClick={saveFav} className="text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ この問題を保存</button>
+                                {isDone && (
+                  <div className="mt-2 ml-12 flex gap-2">
+                    {canSave && <button onClick={saveFav} className="text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ この問題を保存</button>}
+                    <button onClick={() => suggestionClick('出題スタート')} className="text-xs text-white bg-blue-600 border border-blue-600 rounded-full px-3 py-1 shadow-sm">▶ 次の問題</button>
                   </div>
+                
                 )}
               </div>
             )
