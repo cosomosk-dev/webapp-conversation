@@ -324,6 +324,46 @@ const Main: FC<IMainProps> = () => {
   const [isRespondingConIsCurrCon, setIsRespondingConCurrCon, getIsRespondingConIsCurrCon] = useGetState(true)
   const [userQuery, setUserQuery] = useState('')
 
+  // 自己修復用: Dify サーバーから会話履歴を取り直して画面を描き直す
+  const syncChatListFromServer = async (conversationId: string) => {
+    if (!conversationId || conversationId === '-1') { return }
+    const build = async () => {
+      const res: any = await fetchChatList(conversationId)
+      const data: any[] = res?.data || []
+      const newChatList: ChatItem[] = generateNewChatListWithOpenStatement()
+      data.forEach((item: any) => {
+        newChatList.push({
+          id: `question-${item.id}`,
+          content: item.query,
+          isAnswer: false,
+          message_files: item.message_files?.filter((file: any) => file.belongs_to === 'user') || [],
+        })
+        newChatList.push({
+          id: item.id,
+          content: item.answer,
+          agent_thoughts: addFileInfos(item.agent_thoughts ? sortAgentSorts(item.agent_thoughts) : item.agent_thoughts, item.message_files),
+          feedback: item.feedback,
+          isAnswer: true,
+          message_files: item.message_files?.filter((file: any) => file.belongs_to === 'assistant') || [],
+        })
+      })
+      return newChatList
+    }
+    try {
+      let list = await build()
+      const last = list[list.length - 1]
+      if (!last || (last.isAnswer && !last.content)) {
+        // Dify 側の保存がまだなら少し待ってもう一度
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        list = await build()
+      }
+      if (list.length > 0) { setChatList(list) }
+    }
+    catch (e) {
+      console.error('[cosmosK] syncChatListFromServer failed', e)
+    }
+  }
+
   const updateCurrentQA = ({
     responseItem,
     questionId,
@@ -459,7 +499,14 @@ const Main: FC<IMainProps> = () => {
         })
       },
       async onCompleted(hasError?: boolean) {
-        if (hasError) { return }
+        const finalConversationId = tempNewConversationId || getCurrConversationId()
+        const answerIsEmpty = !responseItem.content && !(responseItem.agent_thoughts && responseItem.agent_thoughts.length > 0)
+        if (hasError || answerIsEmpty) {
+          // 返事が空のまま終わった／エラーで終わった → サーバーから取り直して描き直す（自己修復）
+          console.warn('[cosmosK] answer empty or error, resync from server', { hasError, answerIsEmpty, finalConversationId })
+          await new Promise(resolve => setTimeout(resolve, 800))
+          await syncChatListFromServer(finalConversationId)
+        }
 
         if (getConversationIdChangeBecauseOfNew()) {
           const { data: allConversations }: any = await fetchConversations()
@@ -473,7 +520,7 @@ const Main: FC<IMainProps> = () => {
         setConversationIdChangeBecauseOfNew(false)
         resetNewConversationInputs()
         setChatNotStarted()
-        setCurrConversationId(tempNewConversationId, APP_ID, true)
+        if (finalConversationId && finalConversationId !== '-1') { setCurrConversationId(finalConversationId, APP_ID, true) }
         setRespondingFalse()
       },
       onFile(file) {
@@ -566,11 +613,16 @@ const Main: FC<IMainProps> = () => {
         ))
       },
       onError() {
+        console.error('[cosmosK] sendChatMessage onError')
         setRespondingFalse()
         // role back placeholder answer
         setChatList(produce(getChatList(), (draft) => {
-          draft.splice(draft.findIndex(item => item.id === placeholderAnswerId), 1)
+          const idx = draft.findIndex(item => item.id === placeholderAnswerId)
+          if (idx >= 0) { draft.splice(idx, 1) }
         }))
+        // 通信は失敗しても Dify 側は処理を終えている場合があるので取り直す
+        const convId = tempNewConversationId || getCurrConversationId()
+        if (convId && convId !== '-1') { syncChatListFromServer(convId) }
       },
       onWorkflowStarted: ({ workflow_run_id, task_id }) => {
         // taskIdRef.current = task_id
