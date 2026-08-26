@@ -226,11 +226,24 @@ const handleStream = (
             else if (bufferObj.event === 'node_finished') {
               onNodeFinished?.(bufferObj as NodeFinishedResponse)
             }
+            else if (bufferObj.event === 'error') {
+              // Dify が途中でエラーを返した場合（従来は無視されて画面が空のまま固まっていた）
+              console.error('[cosmosK] SSE error event', bufferObj)
+              onData('', false, {
+                conversationId: undefined,
+                messageId: '',
+                errorMessage: bufferObj?.message || 'error',
+                errorCode: bufferObj?.code,
+              })
+              hasError = true
+              onCompleted?.(true)
+            }
           }
         })
         buffer = lines[lines.length - 1]
       }
       catch (e) {
+        console.error('[cosmosK] stream handler error', e)
         onData('', false, {
           conversationId: undefined,
           messageId: '',
@@ -398,8 +411,8 @@ export const ssePost = (
           return
         }
         onData?.(str, isFirstMessage, moreInfo)
-      }, () => {
-        onCompleted?.()
+      }, (hasError?: boolean) => {
+        onCompleted?.(hasError)
       }, onThought, onMessageEnd, onMessageReplace, onFile, onWorkflowStarted, onWorkflowFinished, onNodeStarted, onNodeFinished)
     })
     .catch((e) => {
