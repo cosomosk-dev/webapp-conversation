@@ -128,3 +128,9 @@ a {
   background-clip: text;
   text-fill-color: transparent;
 }
+/* 長文が見切れるバグ対策: コードブロックも折り返す */
+pre, code {
+  white-space: pre-wrap !important;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
