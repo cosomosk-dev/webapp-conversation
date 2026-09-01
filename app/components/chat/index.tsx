@@ -150,6 +150,7 @@ const Chat: FC<IChatProps> = ({
   return (
     <div className={cn(!feedbackDisabled && 'px-3.5', 'h-full')}>
     <a href="/favorites" className="fixed z-20 top-3 right-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ お気に入り</a>
+      <a href="/privacy" className="fixed z-20 top-3 right-[112px] text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">プライバシーポリシー</a>
       {/* Chat List */}
       <div className="h-full space-y-[30px]">
                 {chatList.map((item, idx) => {
