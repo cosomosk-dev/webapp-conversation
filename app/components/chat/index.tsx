@@ -96,6 +96,23 @@ const Chat: FC<IChatProps> = ({
 
   const [attachmentFiles, setAttachmentFiles] = React.useState<FileEntity[]>([])
 
+  // ---- 無料枠(累計5回)のカウンター ----
+  const FREE_LIMIT = 5
+  const QUOTA_KEY = 'cosmosk_free_used'
+  const readUsed = (): number => {
+    try { return Number(localStorage.getItem(QUOTA_KEY)) || 0 }
+    catch { return 0 }
+  }
+  const [usedToday, setUsedToday] = React.useState(0)
+  const [premium, setPremium] = React.useState(false)
+  const [showPaywall, setShowPaywall] = React.useState(false)
+  useEffect(() => {
+    setUsedToday(readUsed())
+    try { setPremium(localStorage.getItem('cosmosk_premium') === '1') }
+    catch { }
+  }, [])
+  const remaining = Math.max(0, FREE_LIMIT - usedToday)
+
   const handleSend = () => {
     if (!valid() || (checkCanSend && !checkCanSend())) { return }
     const hasPendingImageUploads = files.some(file => file.progress !== -1 && file.progress < 100)
@@ -103,6 +120,19 @@ const Chat: FC<IChatProps> = ({
     if (hasPendingImageUploads || hasPendingAttachmentUploads) {
       logError(t('app.errorMessage.waitForFileUpload'))
       return
+    }
+    // 答案の送信だけ無料枠を消費する(「出題スタート」はノーカウント・累計制)
+    const isAnswerSend = queryRef.current.trim() !== '出題スタート'
+    if (isAnswerSend && !premium) {
+      const used = readUsed()
+      if (used >= FREE_LIMIT) {
+        setUsedToday(used)
+        setShowPaywall(true)
+        return
+      }
+      try { localStorage.setItem(QUOTA_KEY, String(used + 1)) }
+      catch { }
+      setUsedToday(used + 1)
     }
     const imageFiles: VisionFile[] = files.filter(file => file.progress !== -1).map(fileItem => ({
       type: 'image',
@@ -151,6 +181,17 @@ const Chat: FC<IChatProps> = ({
     <div className={cn(!feedbackDisabled && 'px-3.5', 'h-full')}>
     <a href="/favorites" className="fixed z-20 top-[46px] right-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ お気に入り</a>
      <a href="/privacy" className="fixed z-20 top-[46px] left-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">プライバシーポリシー</a>
+      {showPaywall && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-6" onClick={() => setShowPaywall(false)}>
+          <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-lg text-center" onClick={e => e.stopPropagation()}>
+            <div className="text-2xl mb-2">🌸</div>
+            <div className="text-base font-bold text-gray-800 mb-2">無料の採点（{FREE_LIMIT}回分）は終了しました</div>
+            <div className="text-sm text-gray-600 mb-4">採点し放題プラン（月500円）で、92問すべてを何度でも採点できます。<br />新しい問題を見るのは、このまま無料で続けられます。</div>
+            <div className="text-xs text-gray-400 mb-4">採点し放題プランは近日提供予定です</div>
+            <button onClick={() => setShowPaywall(false)} className="w-full py-2 rounded-full bg-blue-600 text-white text-sm font-bold">閉じる</button>
+          </div>
+        </div>
+      )}
       {/* Chat List */}
       <div className="h-full space-y-[30px]">
                 {chatList.map((item, idx) => {
@@ -213,6 +254,9 @@ const Chat: FC<IChatProps> = ({
       {
         !isHideSendInput && (
           <div className='fixed z-10 bottom-0 left-1/2 transform -translate-x-1/2 pc:ml-[122px] tablet:ml-[96px] mobile:ml-0 pc:w-[794px] tablet:w-[794px] max-w-full mobile:w-full px-3.5'>
+            {!premium && (
+              <div className="text-[11px] text-right text-gray-500 mb-1 pr-1">無料採点 あと{remaining}回</div>
+            )}
             <div className='p-[5.5px] max-h-[150px] bg-white border-[1.5px] border-gray-200 rounded-xl overflow-y-auto'>
               {
                 visionConfig?.enabled && (
