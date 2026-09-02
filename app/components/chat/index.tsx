@@ -97,7 +97,7 @@ const Chat: FC<IChatProps> = ({
   const [attachmentFiles, setAttachmentFiles] = React.useState<FileEntity[]>([])
 
   // ---- 無料枠(累計5回)のカウンター ----
-  const FREE_LIMIT = 5
+  const FREE_LIMIT = 50
   const QUOTA_KEY = 'cosmosk_free_used'
   const readUsed = (): number => {
     try { return Number(localStorage.getItem(QUOTA_KEY)) || 0 }
