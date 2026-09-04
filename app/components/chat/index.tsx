@@ -112,6 +112,22 @@ const Chat: FC<IChatProps> = ({
     catch { }
   }, [])
   const remaining = Math.max(0, FREE_LIMIT - usedToday)
+    const chargePendingRef = React.useRef(false)
+  const refundUsed = () => {
+    const u = readUsed()
+    const next = Math.max(0, u - 1)
+    try { localStorage.setItem(QUOTA_KEY, String(next)) }
+    catch { }
+    setUsedToday(next)
+  }
+  useEffect(() => {
+    if (isResponding || !chargePendingRef.current)
+      return
+    chargePendingRef.current = false
+    const last = chatList[chatList.length - 1]
+    if (last && last.isAnswer && (!last.content || !last.content.trim()))
+      refundUsed()
+  }, [isResponding])
 
   const handleSend = () => {
     if (!valid() || (checkCanSend && !checkCanSend())) { return }
@@ -132,8 +148,9 @@ const Chat: FC<IChatProps> = ({
       }
       try { localStorage.setItem(QUOTA_KEY, String(used + 1)) }
       catch { }
+      chargePendingRef.current = true
       setUsedToday(used + 1)
-    }
+    }  
     const imageFiles: VisionFile[] = files.filter(file => file.progress !== -1).map(fileItem => ({
       type: 'image',
       transfer_method: fileItem.type,
