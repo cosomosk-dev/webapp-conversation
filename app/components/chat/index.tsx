@@ -99,12 +99,16 @@ const Chat: FC<IChatProps> = ({
   // ---- 無料枠(累計5回)のカウンター ----
   const FREE_LIMIT = 50
   const QUOTA_KEY = 'cosmosk_free_used'
+  const REVIEW_ENABLED = true // 不調時はfalseにすればレビューリンクを即停止できる
+  const REVIEW_KEY = 'cosmosk_review_prompt_shown'
+  const REVIEW_COUNT_KEY = 'cosmosk_grade_success'
   const readUsed = (): number => {
     try { return Number(localStorage.getItem(QUOTA_KEY)) || 0 }
     catch { return 0 }
   }
   const [usedToday, setUsedToday] = React.useState(0)
   const [premium, setPremium] = React.useState(false)
+  const [showReviewLink, setShowReviewLink] = React.useState(false)
   const [showPaywall, setShowPaywall] = React.useState(false)
   useEffect(() => {
     setUsedToday(readUsed())
@@ -120,13 +124,30 @@ const Chat: FC<IChatProps> = ({
     catch { }
     setUsedToday(next)
   }
-  useEffect(() => {
+   useEffect(() => {
     if (isResponding || !chargePendingRef.current)
       return
     chargePendingRef.current = false
     const last = chatList[chatList.length - 1]
-    if (last && last.isAnswer && (!last.content || !last.content.trim()))
+    if (last && last.isAnswer && (!last.content || !last.content.trim())) {
       refundUsed()
+    }
+    else {
+      // 採点成功(失敗=返金のケースはカウントしない)
+      if (REVIEW_ENABLED) {
+        try {
+          if (localStorage.getItem(REVIEW_KEY) !== '1') {
+            const n = (Number(localStorage.getItem(REVIEW_COUNT_KEY)) || 0) + 1
+            localStorage.setItem(REVIEW_COUNT_KEY, String(n))
+            if (n >= 3) {
+              localStorage.setItem(REVIEW_KEY, '1')
+              setShowReviewLink(true)
+            }
+          }
+        }
+        catch { }
+      }
+    }
   }, [isResponding])
 
   const handleSend = () => {
@@ -275,6 +296,11 @@ const Chat: FC<IChatProps> = ({
               <div className="text-[11px] text-right text-gray-500 mb-1 pr-1">無料採点 あと{remaining}回</div>
             )}
             <div className="text-[10px] text-gray-400 mb-1 pr-1 text-right">※AIによる採点のため、不正確な場合があります</div>
+            {showReviewLink && (
+              <div className="text-[11px] text-right mb-1 pr-1">
+                <a href="https://play.google.com/store/apps/details?id=com.cosmosk.app" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">🌸 Google Playで評価する</a>
+              </div>
+            )}
             <div className='p-[5.5px] max-h-[150px] bg-white border-[1.5px] border-gray-200 rounded-xl overflow-y-auto'>
               {
                 visionConfig?.enabled && (
