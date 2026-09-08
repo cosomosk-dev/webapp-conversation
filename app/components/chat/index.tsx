@@ -225,7 +225,9 @@ const Chat: FC<IChatProps> = ({
             <div className="text-2xl mb-2">🌸</div>
             <div className="text-base font-bold text-gray-800 mb-2">無料の採点（{FREE_LIMIT}回分）は終了しました</div>
             <div className="text-sm text-gray-600 mb-4">採点し放題プラン（月500円）で、92問すべてを何度でも採点できます。<br />新しい問題を見るのは、このまま無料で続けられます。</div>
-            <div className="text-xs text-gray-400 mb-4">採点し放題プランは近日提供予定です</div>
+                        <div className="text-xs text-gray-400 mb-2">採点し放題プランは近日提供予定です</div>
+            <div className="text-xs text-gray-500 mb-2">※自動更新のプランです。いつでも解約でき、次回の更新日より前に解約すれば追加の請求はありません。（試験が終わっても自動では終了しないため、不要になったら解約してください）</div>
+            <a href="https://play.google.com/store/account/subscriptions" target="_blank" rel="noopener noreferrer" className="block text-xs text-blue-600 underline mb-4">サブスクリプションの管理・解約はこちら（Google Play）</a>
             <button onClick={() => setShowPaywall(false)} className="w-full py-2 rounded-full bg-blue-600 text-white text-sm font-bold">閉じる</button>
           </div>
         </div>
