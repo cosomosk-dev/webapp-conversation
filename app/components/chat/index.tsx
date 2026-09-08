@@ -219,7 +219,6 @@ const Chat: FC<IChatProps> = ({
     <div className={cn(!feedbackDisabled && 'px-3.5', 'h-full')}>
     <a href="/favorites" className="fixed z-20 top-[46px] right-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ お気に入り</a>
      <a href="/privacy" className="fixed z-20 top-[46px] left-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">プライバシーポリシー</a>
-     <a href="/about" className="fixed z-20 top-[78px] left-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">👤 企画・監修者</a>
       {showPaywall && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-6" onClick={() => setShowPaywall(false)}>
           <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-lg text-center" onClick={e => e.stopPropagation()}>
@@ -299,6 +298,7 @@ const Chat: FC<IChatProps> = ({
               <div className="text-[11px] text-right text-gray-500 mb-1 pr-1">無料採点 あと{remaining}回</div>
             )}
             <div className="text-[10px] text-gray-400 mb-1 pr-1 text-right">※AIによる採点のため、不正確な場合があります</div>
+            <div className="text-[10px] mb-1 pr-1 text-right"><a href="/about" className="text-gray-500 underline">👤 企画・監修者</a></div>
             {showReviewLink && (
               <div className="text-[11px] text-right mb-1 pr-1">
                 <a href="https://play.google.com/store/apps/details?id=com.cosmosk.app" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">🌸 Google Playで評価する</a>
