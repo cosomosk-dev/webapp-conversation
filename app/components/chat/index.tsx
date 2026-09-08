@@ -136,11 +136,11 @@ const Chat: FC<IChatProps> = ({
       // 採点成功(失敗=返金のケースはカウントしない)
       if (REVIEW_ENABLED) {
         try {
-          if (localStorage.getItem(REVIEW_KEY) !== '1') {
+        if (true) {
             const n = (Number(localStorage.getItem(REVIEW_COUNT_KEY)) || 0) + 1
             localStorage.setItem(REVIEW_COUNT_KEY, String(n))
             if (n >= 3) {
-              localStorage.setItem(REVIEW_KEY, '1')
+              
               setShowReviewLink(true)
             }
           }
