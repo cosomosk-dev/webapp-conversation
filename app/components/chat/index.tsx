@@ -219,7 +219,7 @@ const Chat: FC<IChatProps> = ({
     <div className={cn(!feedbackDisabled && 'px-3.5', 'h-full')}>
     <a href="/favorites" className="fixed z-20 top-[46px] right-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ お気に入り</a>
      <a href="/privacy" className="fixed z-20 top-[46px] left-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">プライバシーポリシー</a>
-          <a href="/about" className="fixed z-20 top-[46px] left-[150px] text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">👤 監修者</a> 
+     <a href="/about" className="fixed z-20 top-[78px] left-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">👤 企画・監修者</a>
       {showPaywall && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-6" onClick={() => setShowPaywall(false)}>
           <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-lg text-center" onClick={e => e.stopPropagation()}>
