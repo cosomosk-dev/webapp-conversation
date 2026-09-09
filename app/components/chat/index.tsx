@@ -297,7 +297,7 @@ const Chat: FC<IChatProps> = ({
               <div className="text-[11px] text-right text-gray-500 mb-1 pr-1">無料採点 あと{remaining}回</div>
             )}
             <div className="text-[10px] text-gray-400 mb-1 pr-1 text-right">※AIによる採点のため、不正確な場合があります</div>
-            <div className="text-[10px] mb-1 pr-1 text-right"><a href="/about" className="text-gray-500 underline">👤 企画・監修者</a><span className="text-gray-400 mx-1">・</span><a href="/privacy" className="text-gray-500 underline">プライバシーポリシー</a></div>
+            <div className="text-[10px] mb-1 pr-1 text-right"><a href="/about" className="text-gray-500 underline">👤企画・監修:行政書士 加藤貴大</a><span className="text-gray-400 mx-1">・</span><a href="/privacy" className="text-gray-500 underline">プライバシーポリシー</a></div>
             {showReviewLink && (
               <div className="text-[11px] text-right mb-1 pr-1">
                 <a href="https://play.google.com/store/apps/details?id=com.cosmosk.app" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">🌸 Google Playで評価する</a>
