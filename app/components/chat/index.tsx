@@ -110,10 +110,40 @@ const Chat: FC<IChatProps> = ({
   const [premium, setPremium] = React.useState(false)
   const [showReviewLink, setShowReviewLink] = React.useState(false)
   const [showPaywall, setShowPaywall] = React.useState(false)
+  const [isNativeApp, setIsNativeApp] = React.useState(false)
+
+  const checkPremium = () => {
+    try {
+      const isPremium = localStorage.getItem('cosmosk_premium') === '1'
+      setPremium(isPremium)
+      if (isPremium) setShowPaywall(false)
+    }
+    catch { }
+  }
+
+  const checkNativeRef = React.useRef(() => {
+    const detected = !!(window as any).CosmosBilling
+    setIsNativeApp(detected)
+    return detected
+  })
+
   useEffect(() => {
     setUsedToday(readUsed())
-    try { setPremium(localStorage.getItem('cosmosk_premium') === '1') }
-    catch { }
+    checkPremium()
+    const checkNative = checkNativeRef.current
+    checkNative()
+    window.addEventListener('nativeAppReady', checkNative)
+    window.addEventListener('cosmosk_premium_changed', checkPremium)
+    const retryTimer = setInterval(() => {
+      if (checkNative()) clearInterval(retryTimer)
+    }, 500)
+    const cleanupTimer = setTimeout(() => clearInterval(retryTimer), 5000)
+    return () => {
+      window.removeEventListener('nativeAppReady', checkNative)
+      window.removeEventListener('cosmosk_premium_changed', checkPremium)
+      clearInterval(retryTimer)
+      clearTimeout(cleanupTimer)
+    }
   }, [])
   const remaining = Math.max(0, FREE_LIMIT - usedToday)
     const chargePendingRef = React.useRef(false)
@@ -164,6 +194,7 @@ const Chat: FC<IChatProps> = ({
       const used = readUsed()
       if (used >= FREE_LIMIT) {
         setUsedToday(used)
+        checkNativeRef.current()
         setShowPaywall(true)
         return
       }
@@ -224,10 +255,23 @@ const Chat: FC<IChatProps> = ({
             <div className="text-2xl mb-2">🌸</div>
             <div className="text-base font-bold text-gray-800 mb-2">無料の採点（{FREE_LIMIT}回分）は終了しました</div>
             <div className="text-sm text-gray-600 mb-4">採点し放題プラン（月500円）で、92問すべてを何度でも採点できます。<br />新しい問題を見るのは、このまま無料で続けられます。</div>
-                        <div className="text-xs text-gray-400 mb-2">採点し放題プランは近日提供予定です</div>
-            <div className="text-xs text-gray-500 mb-2">※自動更新のプランです。いつでも解約でき、次回の更新日より前に解約すれば追加の請求はありません。（試験が終わっても自動では終了しないため、不要になったら解約してください）</div>
-            <a href="https://play.google.com/store/account/subscriptions" target="_blank" rel="noopener noreferrer" className="block text-xs text-blue-600 underline mb-4">サブスクリプションの管理・解約はこちら（Google Play）</a>
-            <button onClick={() => setShowPaywall(false)} className="w-full py-2 rounded-full bg-blue-600 text-white text-sm font-bold">閉じる</button>
+            {isNativeApp
+              ? (
+                <>
+                  <button
+                    onClick={() => { try { (window as any).CosmosBilling.subscribe() } catch { } }}
+                    className="w-full py-2 rounded-full bg-blue-600 text-white text-sm font-bold mb-2"
+                  >
+                    採点し放題プラン（月500円）に登録
+                  </button>
+                  <div className="text-xs text-gray-500 mb-2">※自動更新のプランです。いつでも解約でき、次回の更新日より前に解約すれば追加の請求はありません。（試験が終わっても自動では終了しないため、不要になったら解約してください）</div>
+                  <a href="https://play.google.com/store/account/subscriptions" target="_blank" rel="noopener noreferrer" className="block text-xs text-blue-600 underline mb-4">サブスクリプションの管理・解約はこちら（Google Play）</a>
+                </>
+              )
+              : (
+                <div className="text-xs text-gray-400 mb-2">採点し放題プランは近日提供予定です</div>
+              )}
+            <button onClick={() => setShowPaywall(false)} className="w-full py-2 rounded-full border border-gray-300 text-gray-600 text-sm">閉じる</button>
           </div>
         </div>
       )}
