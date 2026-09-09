@@ -51,3 +51,15 @@ yarn.lock
 .serena
 # pmpm
 pnpm-lock.yaml
+
+# Android signing (sensitive - do NOT commit)
+android/upload.keystore
+android/*.keystore
+android/*.jks
+android/keystore.properties
+android/local.properties
+
+# Android build artifacts
+android/.gradle/
+android/app/build/
+android/build/

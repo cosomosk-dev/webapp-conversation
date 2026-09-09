@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">コスモスK行政書士記述式</string>
+    <string name="web_app_url">https://webapp-conversation-cosmosk.vercel.app</string>
+    <string name="loading_message">読み込み中…</string>
+    <string name="error_no_network">インターネット接続がありません。\n接続を確認してからもう一度お試しください。</string>
+    <string name="error_page_load">ページの読み込みに失敗しました。</string>
+    <string name="btn_retry">再読み込み</string>
+    <string name="subscription_product_id">cosmosk_monthly_500</string>
+</resources>
