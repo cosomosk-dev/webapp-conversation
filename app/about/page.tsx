@@ -43,7 +43,7 @@ export default function AboutPage() {
         rel="noopener noreferrer"
         className="inline-block rounded-lg bg-gray-900 px-5 py-3 font-bold text-white"
       >
-        Instagram はこちら
+        📷 アプリの感想はInstagramのDMへ
       </a>
     </main>
   )
