@@ -97,7 +97,7 @@ const Chat: FC<IChatProps> = ({
   const [attachmentFiles, setAttachmentFiles] = React.useState<FileEntity[]>([])
 
   // ---- 無料枠(累計5回)のカウンター ----
-  const FREE_LIMIT = 50
+  const FREE_LIMIT = 10
   const QUOTA_KEY = 'cosmosk_free_used'
   const REVIEW_ENABLED = true // 不調時はfalseにすればレビューリンクを即停止できる
   const REVIEW_KEY = 'cosmosk_review_prompt_shown'
