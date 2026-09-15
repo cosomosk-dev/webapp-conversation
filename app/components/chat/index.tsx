@@ -96,6 +96,24 @@ const Chat: FC<IChatProps> = ({
 
   const [attachmentFiles, setAttachmentFiles] = React.useState<FileEntity[]>([])
 
+  // ---- キーボード表示時のオフセット(visualViewport fallback) ----
+  const [keyboardOffset, setKeyboardOffset] = React.useState(0)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) { return }
+    const handleResize = () => {
+      const offset = window.innerHeight - vv.height - vv.offsetTop
+      setKeyboardOffset(Math.max(0, Math.round(offset)))
+    }
+    vv.addEventListener('resize', handleResize)
+    vv.addEventListener('scroll', handleResize)
+    handleResize()
+    return () => {
+      vv.removeEventListener('resize', handleResize)
+      vv.removeEventListener('scroll', handleResize)
+    }
+  }, [])
+
   // ---- 無料枠(累計5回)のカウンター ----
   const FREE_LIMIT = 10
   const QUOTA_KEY = 'cosmosk_free_used'
@@ -116,7 +134,7 @@ const Chat: FC<IChatProps> = ({
     try {
       const isPremium = localStorage.getItem('cosmosk_premium') === '1'
       setPremium(isPremium)
-      if (isPremium) setShowPaywall(false)
+      if (isPremium) { setShowPaywall(false) }
     }
     catch { }
   }
@@ -135,7 +153,7 @@ const Chat: FC<IChatProps> = ({
     window.addEventListener('nativeAppReady', checkNative)
     window.addEventListener('cosmosk_premium_changed', checkPremium)
     const retryTimer = setInterval(() => {
-      if (checkNative()) clearInterval(retryTimer)
+      if (checkNative()) { clearInterval(retryTimer) }
     }, 500)
     const cleanupTimer = setTimeout(() => clearInterval(retryTimer), 5000)
     return () => {
@@ -146,7 +164,7 @@ const Chat: FC<IChatProps> = ({
     }
   }, [])
   const remaining = Math.max(0, FREE_LIMIT - usedToday)
-    const chargePendingRef = React.useRef(false)
+  const chargePendingRef = React.useRef(false)
   const refundUsed = () => {
     const u = readUsed()
     const next = Math.max(0, u - 1)
@@ -154,9 +172,9 @@ const Chat: FC<IChatProps> = ({
     catch { }
     setUsedToday(next)
   }
-   useEffect(() => {
+  useEffect(() => {
     if (isResponding || !chargePendingRef.current)
-      return
+    { return }
     chargePendingRef.current = false
     const last = chatList[chatList.length - 1]
     if (last && last.isAnswer && (!last.content || !last.content.trim())) {
@@ -166,11 +184,10 @@ const Chat: FC<IChatProps> = ({
       // 採点成功(失敗=返金のケースはカウントしない)
       if (REVIEW_ENABLED) {
         try {
-        if (true) {
+          if (true) {
             const n = (Number(localStorage.getItem(REVIEW_COUNT_KEY)) || 0) + 1
             localStorage.setItem(REVIEW_COUNT_KEY, String(n))
             if (n >= 3) {
-              
               setShowReviewLink(true)
             }
           }
@@ -202,7 +219,7 @@ const Chat: FC<IChatProps> = ({
       catch { }
       chargePendingRef.current = true
       setUsedToday(used + 1)
-    }  
+    }
     const imageFiles: VisionFile[] = files.filter(file => file.progress !== -1).map(fileItem => ({
       type: 'image',
       transfer_method: fileItem.type,
@@ -247,8 +264,8 @@ const Chat: FC<IChatProps> = ({
   }
 
   return (
-    <div className={cn(!feedbackDisabled && 'px-3.5', 'h-full')}>
-    <a href="/favorites" className="fixed z-20 top-[46px] right-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ お気に入り</a>
+    <div className={cn(!feedbackDisabled && 'px-3.5', 'min-h-full')}>
+      <a href="/favorites" className="fixed z-20 top-[46px] right-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ お気に入り</a>
       {showPaywall && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-6" onClick={() => setShowPaywall(false)}>
           <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-lg text-center" onClick={e => e.stopPropagation()}>
@@ -276,17 +293,17 @@ const Chat: FC<IChatProps> = ({
         </div>
       )}
       {/* Chat List */}
-      <div className="h-full space-y-[30px]">
-                {chatList.map((item, idx) => {
+      <div className="space-y-[30px]">
+        {chatList.map((item, idx) => {
           if (item.isAnswer) {
             const isLast = item.id === chatList[chatList.length - 1].id
             const prevUser = chatList[idx - 1]
             const prevQ = chatList[idx - 2]
-                       const isDone = !item.isOpeningStatement && !(isResponding && isLast) && !!item.content && !!prevUser && !prevUser.isAnswer
+            const isDone = !item.isOpeningStatement && !(isResponding && isLast) && !!item.content && !!prevUser && !prevUser.isAnswer
             const canSave = isDone && prevUser.content.trim() !== '出題スタート'
             const saveFav = () => {
               try {
-                const favs: { id: string; content: string; date: string }[] = JSON.parse(localStorage.getItem('cosmosk_favs') || '[]')
+                const favs: { id: string, content: string, date: string }[] = JSON.parse(localStorage.getItem('cosmosk_favs') || '[]')
                 if (favs.some(f => f.id === item.id)) {
                   notify({ type: 'info', message: 'この問題はすでに保存済みです', duration: 2000 })
                   return
@@ -313,12 +330,12 @@ const Chat: FC<IChatProps> = ({
                   isResponding={isResponding && isLast}
                   suggestionClick={suggestionClick}
                 />
-                                {isDone && (
+                {isDone && (
                   <div className="mt-2 ml-12 flex gap-2">
                     {canSave && <button onClick={saveFav} className="text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ この問題を保存</button>}
                     <button onClick={() => suggestionClick('出題スタート')} className="text-xs text-white bg-blue-600 border border-blue-600 rounded-full px-3 py-1 shadow-sm">▶ 次の問題</button>
                   </div>
-                
+
                 )}
               </div>
             )
@@ -336,7 +353,13 @@ const Chat: FC<IChatProps> = ({
       </div>
       {
         !isHideSendInput && (
-          <div className='fixed z-10 bottom-0 left-1/2 transform -translate-x-1/2 pc:ml-[122px] tablet:ml-[96px] mobile:ml-0 pc:w-[794px] tablet:w-[794px] max-w-full mobile:w-full px-3.5'>
+          <div
+            className='fixed z-10 left-1/2 transform -translate-x-1/2 pc:ml-[122px] tablet:ml-[96px] mobile:ml-0 pc:w-[794px] tablet:w-[794px] max-w-full mobile:w-full px-3.5 bg-white'
+            style={{
+              bottom: keyboardOffset > 0 ? `${keyboardOffset}px` : '0px',
+              paddingBottom: keyboardOffset > 0 ? '4px' : 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
+            }}
+          >
             {!premium && (
               <div className="text-[11px] text-right text-gray-500 mb-1 pr-1">無料採点 あと{remaining}回</div>
             )}
@@ -394,7 +417,7 @@ const Chat: FC<IChatProps> = ({
                 autoSize
               />
               <div className="absolute bottom-2 right-6 flex items-center h-8">
-<div className={`${s.count} mr-3 h-5 leading-5 text-sm px-2 rounded-md ${query.length > 40 ? 'bg-red-50 text-red-600 font-bold' : 'bg-gray-50 text-gray-500'}`}>{query.length > 40 ? `${query.length}/40 +${query.length - 40}` : `${query.length}/40`}</div>                <Tooltip
+                <div className={`${s.count} mr-3 h-5 leading-5 text-sm px-2 rounded-md ${query.length > 40 ? 'bg-red-50 text-red-600 font-bold' : 'bg-gray-50 text-gray-500'}`}>{query.length > 40 ? `${query.length}/40 +${query.length - 40}` : `${query.length}/40`}</div>                <Tooltip
                   selector='send-tip'
                   htmlContent={
                     <div>
