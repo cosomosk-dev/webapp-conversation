@@ -1,7 +1,24 @@
+import type { Metadata, Viewport } from 'next'
 import { getLocaleOnServer } from '@/i18n/server'
 
 import './styles/globals.css'
 import './styles/markdown.scss'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-content',
+}
+
+export const metadata: Metadata = {
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/icon-512.png',
+    apple: '/apple-touch-icon.png',
+  },
+}
 
 const LocaleLayout = async ({
   children,
