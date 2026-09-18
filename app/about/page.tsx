@@ -34,7 +34,7 @@ export default function AboutPage() {
       </p>
       <p className="mb-8">
         神奈川県平塚市を拠点に活動しています。
-        アプリの感想や不具合のご報告も、お気軽にどうぞ。
+        アプリの感想や勉強の相談も、お気軽にどうぞ。
       </p>
 
       <a
@@ -45,6 +45,9 @@ export default function AboutPage() {
       >
         📷 アプリの感想はInstagramのDMへ
       </a>
+      <p className="mt-2 text-xs text-gray-500">
+  ※採点の誤りや不具合のご報告は taka.sr01@gmail.com へお願いします
+</p>
     </main>
   )
 }
