@@ -45,7 +45,7 @@ export default function AboutPage() {
       >
         📷 アプリの感想はInstagramのDMへ
       </a>
-      <p className="mt-2 text-xs text-gray-500">
+     <p className="mt-2 mb-24 text-xs text-gray-500">
   ※採点の誤りや不具合のご報告は taka.sr01@gmail.com へお願いします
 </p>
     </main>
