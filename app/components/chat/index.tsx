@@ -364,12 +364,14 @@ const Chat: FC<IChatProps> = ({
               <div className="text-[11px] text-right text-gray-500 mb-1 pr-1">無料採点 あと{remaining}回</div>
             )}
             <div className="text-[10px] text-gray-400 mb-1 pr-1 text-right">※AIによる採点のため、不正確な場合があります</div>
-          <a 
-  href="/about"
-  className="mx-1 my-1 block rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-center text-xs text-blue-700"
->
-  監修者本人がDM返します📩 <span className="font-bold">勉強の相談・感想はこちら →</span>
-</a>
+         {keyboardOffset <= 0 && (
+  　　　　　<a
+    href="/about"
+    className="block mt-1 text-center text-xs text-blue-600 underline"
+  >
+    📩 監修者に相談・感想 →
+  </a>
+)}
             <div className="text-[10px] mb-1 pr-1 text-right"><a href="/about" className="text-gray-500 underline">👤企画・監修:行政書士 加藤貴大</a><span className="text-gray-400 mx-1">・</span><a href="/privacy" className="text-gray-500 underline">プライバシーポリシー</a></div>
             {showReviewLink && (
               <div className="text-[11px] text-right mb-1 pr-1">
