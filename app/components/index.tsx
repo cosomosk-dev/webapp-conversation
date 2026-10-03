@@ -23,6 +23,10 @@ import { API_KEY, APP_ID, APP_INFO, isShowPrompt, promptTemplate } from '@/confi
 import type { Annotation as AnnotationType } from '@/types/log'
 import { addFileInfos, sortAgentSorts } from '@/utils/tools'
 
+const SCORING_COUNT_KEY = 'cosmosk_scoring_count'
+const REVIEW_REQUESTED_KEY = 'cosmosk_review_requested'
+const SCORING_TRIGGER_COUNT = 3
+
 export interface IMainProps {
   params: any
 }
@@ -396,6 +400,27 @@ const Main: FC<IMainProps> = () => {
     }
   }
 
+  const handleScoringReviewCheck = (userMessage: string) => {
+    if (userMessage.trim() === '出題スタート') { return }
+
+    try {
+      const currentCount = parseInt(localStorage.getItem(SCORING_COUNT_KEY) || '0', 10) + 1
+      localStorage.setItem(SCORING_COUNT_KEY, String(currentCount))
+
+      const alreadyRequested = localStorage.getItem(REVIEW_REQUESTED_KEY) === '1'
+      if (currentCount >= SCORING_TRIGGER_COUNT && !alreadyRequested) {
+        localStorage.setItem(REVIEW_REQUESTED_KEY, '1')
+        const w = window as any
+        if (w.isNativeApp && w.CosmosBilling?.requestInAppReview) {
+          w.CosmosBilling.requestInAppReview()
+        }
+      }
+    }
+    catch {
+      // localStorage unavailable — skip silently
+    }
+  }
+
   const handleSend = async (message: string, files?: VisionFile[]) => {
     if (isResponding) {
       notify({ type: 'info', message: t('app.errorMessage.waitForResponse') })
@@ -522,6 +547,10 @@ const Main: FC<IMainProps> = () => {
         setChatNotStarted()
         if (finalConversationId && finalConversationId !== '-1') { setCurrConversationId(finalConversationId, APP_ID, true) }
         setRespondingFalse()
+
+        if (!hasError && !answerIsEmpty) {
+          handleScoringReviewCheck(message)
+        }
       },
       onFile(file) {
         const lastThought = responseItem.agent_thoughts?.[responseItem.agent_thoughts?.length - 1]

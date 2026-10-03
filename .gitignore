@@ -58,8 +58,10 @@ android/*.keystore
 android/*.jks
 android/keystore.properties
 android/local.properties
+release*.keystore
 
 # Android build artifacts
 android/.gradle/
+android/app/.gradle/
 android/app/build/
 android/build/
