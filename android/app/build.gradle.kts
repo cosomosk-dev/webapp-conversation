@@ -20,8 +20,8 @@ android {
         applicationId = "com.cosmosk.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "2.2.0"
+        versionCode = 14
+        versionName = "2.5.0"
     }
 
     signingConfigs {
@@ -72,4 +72,7 @@ dependencies {
 
     // Google Play Billing
     implementation("com.android.billingclient:billing-ktx:8.0.0")
+
+    // Google Play In-App Review
+    implementation("com.google.android.play:review-ktx:2.0.2")
 }

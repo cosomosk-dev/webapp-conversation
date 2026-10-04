@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -12,6 +13,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.play.core.review.ReviewManagerFactory
 import com.cosmosk.app.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
@@ -21,6 +23,7 @@ class MainActivity : AppCompatActivity() {
     private var isPageLoaded = false
 
     companion object {
+        private const val TAG = "MainActivity"
         private const val WEB_APP_URL = "https://webapp-conversation-cosmosk.vercel.app"
         private const val JS_BRIDGE_NAME = "CosmosBilling"
     }
@@ -66,7 +69,8 @@ class MainActivity : AppCompatActivity() {
 
             val bridge = WebAppInterface(
                 onSubscribeRequested = { runOnUiThread { billingManager.launchPurchaseFlow() } },
-                onRestoreRequested = { runOnUiThread { billingManager.queryExistingPurchases() } }
+                onRestoreRequested = { runOnUiThread { billingManager.queryExistingPurchases() } },
+                onReviewRequested = { runOnUiThread { launchInAppReview() } }
             )
             addJavascriptInterface(bridge, JS_BRIDGE_NAME)
 
@@ -127,6 +131,21 @@ class MainActivity : AppCompatActivity() {
         val network = cm.activeNetwork ?: return false
         val capabilities = cm.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    private fun launchInAppReview() {
+        val reviewManager = ReviewManagerFactory.create(this)
+        val request = reviewManager.requestReviewFlow()
+        request.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val reviewInfo = task.result
+                reviewManager.launchReviewFlow(this, reviewInfo).addOnCompleteListener {
+                    Log.d(TAG, "In-app review flow completed")
+                }
+            } else {
+                Log.e(TAG, "Failed to request review flow: ${task.exception?.message}")
+            }
+        }
     }
 
     @Deprecated("Use OnBackPressedCallback instead")

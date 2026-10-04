@@ -181,15 +181,12 @@ const Chat: FC<IChatProps> = ({
       refundUsed()
     }
     else {
-      // 採点成功(失敗=返金のケースはカウントしない)
       if (REVIEW_ENABLED) {
         try {
-          if (true) {
-            const n = (Number(localStorage.getItem(REVIEW_COUNT_KEY)) || 0) + 1
-            localStorage.setItem(REVIEW_COUNT_KEY, String(n))
-            if (n >= 3) {
-              setShowReviewLink(true)
-            }
+          const n = (Number(localStorage.getItem(REVIEW_COUNT_KEY)) || 0) + 1
+          localStorage.setItem(REVIEW_COUNT_KEY, String(n))
+          if (n >= 3) {
+            setShowReviewLink(true)
           }
         }
         catch { }
@@ -198,6 +195,7 @@ const Chat: FC<IChatProps> = ({
   }, [isResponding])
 
   const handleSend = () => {
+    if (isResponding) { return }
     if (!valid() || (checkCanSend && !checkCanSend())) { return }
     const hasPendingImageUploads = files.some(file => file.progress !== -1 && file.progress < 100)
     const hasPendingAttachmentUploads = attachmentFiles.some(file => file.progress !== -1 && file.progress < 100)
@@ -205,8 +203,10 @@ const Chat: FC<IChatProps> = ({
       logError(t('app.errorMessage.waitForFileUpload'))
       return
     }
+    const trimmedQuery = queryRef.current.trim()
+    if (!trimmedQuery) { return }
     // 答案の送信だけ無料枠を消費する(「出題スタート」はノーカウント・累計制)
-    const isAnswerSend = queryRef.current.trim() !== '出題スタート'
+    const isAnswerSend = trimmedQuery !== '出題スタート'
     if (isAnswerSend && !premium) {
       const used = readUsed()
       if (used >= FREE_LIMIT) {
@@ -228,7 +228,7 @@ const Chat: FC<IChatProps> = ({
     }))
     const docAndOtherFiles: VisionFile[] = getProcessedFiles(attachmentFiles)
     const combinedFiles: VisionFile[] = [...imageFiles, ...docAndOtherFiles]
-    onSend(queryRef.current, combinedFiles)
+    onSend(trimmedQuery, combinedFiles)
     if (!files.find(item => item.type === TransferMethod.local_file && !item.fileId)) {
       if (files.length) { onClear() }
       if (!isResponding) {
@@ -242,8 +242,7 @@ const Chat: FC<IChatProps> = ({
   const handleKeyUp = (e: any) => {
     if (e.code === 'Enter') {
       e.preventDefault()
-      // prevent send message when using input method enter
-      if (!e.shiftKey && !isUseInputMethod.current) { handleSend() }
+      if (!e.shiftKey && !isUseInputMethod.current && !isResponding) { handleSend() }
     }
   }
 
@@ -364,14 +363,14 @@ const Chat: FC<IChatProps> = ({
               <div className="text-[11px] text-right text-gray-500 mb-1 pr-1">無料採点 あと{remaining}回</div>
             )}
             <div className="text-[10px] text-gray-400 mb-1 pr-1 text-right">※AIによる採点のため、不正確な場合があります</div>
-         {keyboardOffset <= 0 && (
-  　　　　　<a
-    href="/about"
-    className="block mt-1 text-center text-xs text-blue-600 underline"
-  >
-    📩 監修者に相談・感想 →
-  </a>
-)}
+            {keyboardOffset <= 0 && (
+              <a
+                href="/about"
+                className="block mt-1 text-center text-xs text-blue-600 underline"
+              >
+                📩 監修者に相談・感想 →
+              </a>
+            )}
             <div className="text-[10px] mb-1 pr-1 text-right"><a href="/about" className="text-gray-500 underline">👤企画・監修:行政書士 加藤貴大</a><span className="text-gray-400 mx-1">・</span><a href="/privacy" className="text-gray-500 underline">プライバシーポリシー</a></div>
             {showReviewLink && (
               <div className="text-[11px] text-right mb-1 pr-1">
@@ -434,7 +433,7 @@ const Chat: FC<IChatProps> = ({
                     </div>
                   }
                 >
-                  <div className={`${s.sendBtn} ${query.trim() ? s.sendBtnActive : ''} w-8 h-8 cursor-pointer rounded-md`} onClick={handleSend}></div>
+                  <div className={`${s.sendBtn} ${query.trim() ? s.sendBtnActive : ''} w-8 h-8 cursor-pointer rounded-md ${isResponding ? 'opacity-40 !cursor-not-allowed' : ''}`} onClick={handleSend}></div>
                 </Tooltip>
               </div>
             </div>

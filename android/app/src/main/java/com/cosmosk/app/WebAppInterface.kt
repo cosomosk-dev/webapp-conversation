@@ -4,7 +4,8 @@ import android.webkit.JavascriptInterface
 
 class WebAppInterface(
     private val onSubscribeRequested: () -> Unit,
-    private val onRestoreRequested: () -> Unit
+    private val onRestoreRequested: () -> Unit,
+    private val onReviewRequested: () -> Unit
 ) {
     @JavascriptInterface
     fun subscribe() {
@@ -18,4 +19,9 @@ class WebAppInterface(
 
     @JavascriptInterface
     fun isNativeApp(): Boolean = true
+
+    @JavascriptInterface
+    fun requestInAppReview() {
+        onReviewRequested()
+    }
 }
