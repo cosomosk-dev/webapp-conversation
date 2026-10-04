@@ -409,9 +409,9 @@ const Main: FC<IMainProps> = () => {
 
       const alreadyRequested = localStorage.getItem(REVIEW_REQUESTED_KEY) === '1'
       if (currentCount >= SCORING_TRIGGER_COUNT && !alreadyRequested) {
-        localStorage.setItem(REVIEW_REQUESTED_KEY, '1')
-        const w = window as any
+               const w = window as any
         if (w.isNativeApp && w.CosmosBilling?.requestInAppReview) {
+          localStorage.setItem(REVIEW_REQUESTED_KEY, '1')
           w.CosmosBilling.requestInAppReview()
         }
       }
