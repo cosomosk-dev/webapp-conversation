@@ -2,6 +2,7 @@ package com.cosmosk.app
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
@@ -12,7 +13,11 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.google.android.play.core.review.ReviewManagerFactory
 import com.cosmosk.app.databinding.ActivityMainBinding
 
@@ -26,19 +31,34 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
         private const val WEB_APP_URL = "https://webapp-conversation-cosmosk.vercel.app"
         private const val JS_BRIDGE_NAME = "CosmosBilling"
+        private const val STATUS_BAR_COLOR = 0xFF1D4ED8.toInt()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(STATUS_BAR_COLOR),
+            navigationBarStyle = SystemBarStyle.light(Color.WHITE, Color.WHITE)
+        )
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        applyWindowInsets()
         initBilling()
         initWebView()
-        initSwipeRefresh()
         initRetryButton()
 
         loadWebApp()
+    }
+
+    private fun applyWindowInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.rootLayout) { view, windowInsets ->
+            val systemBars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = windowInsets.getInsets(WindowInsetsCompat.Type.ime())
+            val bottomInset = maxOf(systemBars.bottom, ime.bottom)
+            view.setPadding(systemBars.left, systemBars.top, systemBars.right, bottomInset)
+            WindowInsetsCompat.CONSUMED
+        }
     }
 
     private fun initBilling() {
@@ -66,6 +86,7 @@ class MainActivity : AppCompatActivity() {
             settings.loadWithOverviewMode = true
             settings.mediaPlaybackRequiresUserGesture = false
             settings.javaScriptCanOpenWindowsAutomatically = true
+            overScrollMode = View.OVER_SCROLL_NEVER
 
             val bridge = WebAppInterface(
                 onSubscribeRequested = { runOnUiThread { billingManager.launchPurchaseFlow() } },
@@ -76,12 +97,6 @@ class MainActivity : AppCompatActivity() {
 
             webViewClient = AppWebViewClient()
             webChromeClient = WebChromeClient()
-        }
-    }
-
-    private fun initSwipeRefresh() {
-        binding.swipeRefresh.setOnRefreshListener {
-            binding.webView.reload()
         }
     }
 
@@ -116,14 +131,12 @@ class MainActivity : AppCompatActivity() {
     private fun showContent() {
         binding.loadingOverlay.visibility = View.GONE
         binding.errorOverlay.visibility = View.GONE
-        binding.swipeRefresh.isRefreshing = false
     }
 
     private fun showError(message: String) {
         binding.loadingOverlay.visibility = View.GONE
         binding.errorOverlay.visibility = View.VISIBLE
         binding.errorText.text = message
-        binding.swipeRefresh.isRefreshing = false
     }
 
     private fun isNetworkAvailable(): Boolean {

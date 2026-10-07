@@ -8,7 +8,5 @@
         <item name="colorSurface">@color/surface</item>
         <item name="colorOnBackground">@color/on_background</item>
         <item name="colorOnSurface">@color/on_surface</item>
-        <item name="android:statusBarColor">@color/primary</item>
-        <item name="android:navigationBarColor">@color/background</item>
     </style>
 </resources>
