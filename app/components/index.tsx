@@ -24,8 +24,18 @@ import type { Annotation as AnnotationType } from '@/types/log'
 import { addFileInfos, sortAgentSorts } from '@/utils/tools'
 
 const SCORING_COUNT_KEY = 'cosmosk_scoring_count'
-const REVIEW_REQUESTED_KEY = 'cosmosk_review_requested'
-const SCORING_TRIGGER_COUNT = 3
+// v2: 表示条件を「2回目以降・12点以上」に直したので、旧条件(3回目・点数無関係)で使った分は数え直す
+const REVIEW_REQUESTED_KEY = 'cosmosk_review_requested_v2'
+const SCORING_TRIGGER_COUNT = 2 // 1回目の採点では出さない
+const REVIEW_MIN_SCORE = 12 // 20点満点中、この点数以上を取った回にだけ出す
+
+// 採点結果の文章から点数(○/20)を読む。小数(14.5/20)も可。読めなければ -1
+const readScore = (text: string): number => {
+  const head = text.match(/採点結果[^\n]*?(\d{1,2}(?:\.\d+)?)\s*[/／]\s*20/)
+  if (head) { return Number(head[1]) }
+  const all = [...text.matchAll(/(\d{1,2}(?:\.\d+)?)\s*[/／]\s*20/g)]
+  return all.length > 0 ? Number(all[all.length - 1][1]) : -1
+}
 
 export interface IMainProps {
   params: any
@@ -409,20 +419,27 @@ const Main: FC<IMainProps> = () => {
     }
   }
 
-  const handleScoringReviewCheck = (userMessage: string) => {
+  // Google Playの評価ポップアップ(In-App Review)。アプリ版のみ・1インストール1回だけ依頼する
+  // 条件: 2回目以降の採点が正常に終わり、その回が12点以上のとき(12点未満なら次に12点以上を取った回へ持ち越し)
+  const handleScoringReviewCheck = (userMessage: string, answerText: string) => {
     if (userMessage.trim() === '出題スタート') { return }
 
     try {
       const currentCount = parseInt(localStorage.getItem(SCORING_COUNT_KEY) || '0', 10) + 1
       localStorage.setItem(SCORING_COUNT_KEY, String(currentCount))
 
-      const alreadyRequested = localStorage.getItem(REVIEW_REQUESTED_KEY) === '1'
-      if (currentCount >= SCORING_TRIGGER_COUNT && !alreadyRequested) {
-               const w = window as any
-        if (w.isNativeApp && w.CosmosBilling?.requestInAppReview) {
-          localStorage.setItem(REVIEW_REQUESTED_KEY, '1')
-          w.CosmosBilling.requestInAppReview()
-        }
+      if (localStorage.getItem(REVIEW_REQUESTED_KEY) === '1') { return }
+      const score = readScore(answerText)
+      if (currentCount < SCORING_TRIGGER_COUNT || score < REVIEW_MIN_SCORE || score > 20) { return }
+
+      const w = window as any
+      if (typeof w.CosmosBilling?.requestInAppReview === 'function') {
+        localStorage.setItem(REVIEW_REQUESTED_KEY, '1')
+        // 点数を見てもらってから出す
+        setTimeout(() => {
+          try { w.CosmosBilling.requestInAppReview() }
+          catch { }
+        }, 1500)
       }
     }
     catch {
@@ -558,7 +575,7 @@ const Main: FC<IMainProps> = () => {
         setRespondingFalse()
 
         if (!hasError && !answerIsEmpty) {
-          handleScoringReviewCheck(message)
+          handleScoringReviewCheck(message, responseItem.content || '')
         }
       },
       onFile(file) {
