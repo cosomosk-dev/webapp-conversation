@@ -15,6 +15,7 @@ import ImageGallery from '../../base/image-gallery'
 import LoadingAnim from '../loading-anim'
 import s from '../style.module.css'
 import Thought from '../thought'
+import { GradeCard, QuestionCard, isQuestion, parseGrade } from '@/app/components/cosmos/cards'
 
 function OperationBtn({ innerContent, onClick, className }: { innerContent: React.ReactNode, onClick?: () => void, className?: string }) {
   return (
@@ -175,6 +176,17 @@ const Answer: FC<IAnswerProps> = ({
       ))}
     </div>
   )
+
+  // コスモスK: 問題と採点結果はカード表示(読み取れなければ従来の吹き出し)
+  if (!isAgentMode && content) {
+    if (isQuestion(content)) {
+      return <div key={id}><QuestionCard content={content} /></div>
+    }
+    const grade = !isResponding ? parseGrade(content) : null
+    if (grade) {
+      return <div key={id}><GradeCard grade={grade} /></div>
+    }
+  }
 
   return (
     <div key={id}>
