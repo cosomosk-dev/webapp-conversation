@@ -115,6 +115,41 @@ const Chat: FC<IChatProps> = ({
     }
   }, [])
 
+  // ---- キーボードが開いているかの判定 ----
+  // アプリは「キーボードが開くと画面全体の高さが縮む」方式のため、上のkeyboardOffsetは0のままになる。
+  // そこで「入力欄にカーソルがある」かつ「画面の高さが元より大きく縮んだ」ときに、開いていると判定する。
+  const [keyboardOpen, setKeyboardOpen] = React.useState(false)
+  useEffect(() => {
+    const vv = window.visualViewport
+    let baseWidth = window.innerWidth
+    let baseHeight = window.innerHeight
+    const check = () => {
+      const width = window.innerWidth
+      const height = window.innerHeight
+      if (width !== baseWidth) { // 画面の回転など
+        baseWidth = width
+        baseHeight = height
+      }
+      if (height > baseHeight) { baseHeight = height }
+      const visibleHeight = vv ? Math.min(height, vv.height) : height
+      const el = document.activeElement
+      const typing = !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')
+      setKeyboardOpen(typing && baseHeight - visibleHeight > 120)
+    }
+    window.addEventListener('resize', check)
+    document.addEventListener('focusin', check)
+    document.addEventListener('focusout', check)
+    vv?.addEventListener('resize', check)
+    return () => {
+      window.removeEventListener('resize', check)
+      document.removeEventListener('focusin', check)
+      document.removeEventListener('focusout', check)
+      vv?.removeEventListener('resize', check)
+    }
+  }, [])
+  // キーボードが開いている間は、注記などを隠して問題・解説を広く見せる
+  const compact = keyboardOpen || keyboardOffset > 0
+
   // ---- 無料枠(累計5回)のカウンター ----
   const FREE_LIMIT = 10
   const QUOTA_KEY = 'cosmosk_free_used'
@@ -253,6 +288,9 @@ const Chat: FC<IChatProps> = ({
     const docAndOtherFiles: VisionFile[] = getProcessedFiles(attachmentFiles)
     const combinedFiles: VisionFile[] = [...imageFiles, ...docAndOtherFiles]
     onSend(trimmedQuery, combinedFiles)
+    // 送信したらキーボードを閉じて、採点結果・解説を画面いっぱいに見せる
+    try { (document.activeElement as HTMLElement | null)?.blur?.() }
+    catch { }
     if (!files.find(item => item.type === TransferMethod.local_file && !item.fileId)) {
       if (files.length) { onClear() }
       if (!isResponding) {
@@ -324,7 +362,7 @@ const Chat: FC<IChatProps> = ({
 
   return (
     <div className={cn(!feedbackDisabled && 'px-3.5', 'min-h-full')}>
-      {hasUserMessage && <a href="/favorites" className="fixed z-20 top-[54px] right-3 text-xs font-bold rounded-full px-3 py-1 shadow-sm" style={{ background: '#fff', color: NAVY, border: '1px solid #e7e0d0' }}>★ 保存した問題</a>}
+      {hasUserMessage && !compact && <a href="/favorites" className="fixed z-20 top-[54px] right-3 text-xs font-bold rounded-full px-3 py-1 shadow-sm" style={{ background: '#fff', color: NAVY, border: '1px solid #e7e0d0' }}>★ 保存した問題</a>}
       {!hasUserMessage && (
         <div className="-mx-3.5 -mt-[68px] pb-10">
           <div className="px-5 pt-4 pb-16 rounded-b-[28px]" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: '#f4e7c8' }}>
@@ -498,8 +536,8 @@ const Chat: FC<IChatProps> = ({
             {!premium && (
               <div className="text-[11px] text-right text-gray-500 mb-1 pr-1">無料採点 あと{remaining}回</div>
             )}
-            <div className="text-[10px] text-gray-400 mb-1 pr-1 text-right">※AIによる採点のため、不正確な場合があります</div>
-            {keyboardOffset <= 0 && (
+            {!compact && <div className="text-[10px] text-gray-400 mb-1 pr-1 text-right">※AIによる採点のため、不正確な場合があります</div>}
+            {!compact && (
               <a
                 href="/about"
                 className="block mt-1 text-center text-xs underline" style={{ color: NAVY }}
@@ -507,8 +545,8 @@ const Chat: FC<IChatProps> = ({
                 📩 監修者に相談・感想 →
               </a>
             )}
-            <div className="text-[10px] mb-1 pr-1 text-right"><a href="/about" className="text-gray-500 underline">👤企画・監修:行政書士 加藤貴大</a><span className="text-gray-400 mx-1">・</span><a href="/privacy" className="text-gray-500 underline">プライバシーポリシー</a></div>
-            {showReviewLink && (
+            {!compact && <div className="text-[10px] mb-1 pr-1 text-right"><a href="/about" className="text-gray-500 underline">👤企画・監修:行政書士 加藤貴大</a><span className="text-gray-400 mx-1">・</span><a href="/privacy" className="text-gray-500 underline">プライバシーポリシー</a></div>}
+            {showReviewLink && !compact && (
               <div className="text-[11px] text-right mb-1 pr-1">
                 <a href="https://play.google.com/store/apps/details?id=com.cosmosk.app" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">🌸 Google Playで評価する</a>
               </div>
@@ -557,7 +595,7 @@ const Chat: FC<IChatProps> = ({
                 onChange={handleContentChange}
                 onKeyUp={handleKeyUp}
                 onKeyDown={handleKeyDown}
-                placeholder='答案を40字以内で入力'
+                placeholder='40字以内で入力'
                 autoSize
               />
               <div className="absolute bottom-2 right-6 flex items-center h-8">
