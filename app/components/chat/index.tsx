@@ -292,6 +292,24 @@ const Chat: FC<IChatProps> = ({
     }
     catch { }
   }, [hasUserMessage])
+  // 「新しくなりました」のお知らせ(使ったことがある人に1回だけ。新規の人には出さない)
+  const WHATSNEW_KEY = 'cosmosk_whatsnew_seen'
+  const WHATSNEW_ID = '2026-10-13'
+  const [showWhatsNew, setShowWhatsNew] = React.useState(false)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(WHATSNEW_KEY) === WHATSNEW_ID) { return }
+      const returning = ['cosmosk_free_used', 'cosmosk_grade_success', 'cosmosk_favs', 'cosmosk_premium'].some(k => localStorage.getItem(k) !== null)
+      if (returning) { setShowWhatsNew(true) }
+      else { localStorage.setItem(WHATSNEW_KEY, WHATSNEW_ID) }
+    }
+    catch { }
+  }, [])
+  const closeWhatsNew = () => {
+    try { localStorage.setItem(WHATSNEW_KEY, WHATSNEW_ID) }
+    catch { }
+    setShowWhatsNew(false)
+  }
   const daysToExam = (() => {
     const exam = new Date('2026-11-08T00:00:00+09:00').getTime()
     const d = Math.ceil((exam - Date.now()) / 86400000)
@@ -303,7 +321,7 @@ const Chat: FC<IChatProps> = ({
     <div className={cn(!feedbackDisabled && 'px-3.5', 'min-h-full')}>
       {hasUserMessage && <a href="/favorites" className="fixed z-20 top-[54px] right-3 text-xs font-bold rounded-full px-3 py-1 shadow-sm" style={{ background: '#fff', color: NAVY, border: '1px solid #e7e0d0' }}>★ 保存した問題</a>}
       {!hasUserMessage && (
-        <div className="-mx-3.5 -mt-12 pb-10">
+        <div className="-mx-3.5 -mt-[68px] pb-10">
           <div className="px-5 pt-4 pb-16 rounded-b-[28px]" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: '#f4e7c8' }}>
             <div className="text-[12px] opacity-80">行政書士試験 記述式トレーニング</div>
             <h1 className="mt-2 text-[24px] leading-[1.45] font-bold" style={{ fontFamily: SERIF }}>40字で書いて、<br />その場で20点採点。</h1>
@@ -353,6 +371,25 @@ const Chat: FC<IChatProps> = ({
               <span className="text-[11px]" style={{ color: GOLD }}>相談・感想 →</span>
             </a>
             <div className="mt-3 text-center text-[10px] text-gray-400">※AIによる採点のため、不正確な場合があります ・ <a href="/privacy" className="underline">プライバシーポリシー</a></div>
+          </div>
+        </div>
+      )}
+      {showWhatsNew && !showPaywall && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-6" onClick={closeWhatsNew}>
+          <div className="w-full max-w-sm rounded-2xl overflow-hidden shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="px-5 pt-5 pb-4 text-center" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)' }}>
+              <div className="text-[12px] font-bold" style={{ color: GOLD_LIGHT }}>✨ アップデートのお知らせ</div>
+              <div className="mt-1 text-[20px] font-bold" style={{ fontFamily: SERIF, color: '#f4e7c8' }}>コスモスKが新しくなりました</div>
+            </div>
+            <div className="bg-white px-5 py-4">
+              <ul className="space-y-2.5 text-[13.5px] text-gray-700">
+                <li className="flex gap-2"><span style={{ color: GOLD }}>◆</span><span><b>採点結果が見やすく</b>。20点メーターと、採点基準ごとの ✓・<b>△部分点</b>・✕ を一目で</span></li>
+                <li className="flex gap-2"><span style={{ color: GOLD }}>◆</span><span><b>ホーム画面</b>を新設。「問題を解く」ボタンひとつで出題</span></li>
+                <li className="flex gap-2"><span style={{ color: GOLD }}>◆</span><span>採点した数・平均点・本試験までの日数を表示</span></li>
+              </ul>
+              <button onClick={() => { closeWhatsNew(); if (!hasUserMessage) { suggestionClick('出題スタート') } }} className="mt-4 w-full py-3 rounded-xl text-[14px] font-bold" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: GOLD_LIGHT }}>{hasUserMessage ? 'OK' : '▶ さっそく1問解く'}</button>
+              <button onClick={closeWhatsNew} className="mt-2 w-full py-2 text-[12px] text-gray-500">閉じる</button>
+            </div>
           </div>
         </div>
       )}
