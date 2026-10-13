@@ -29,7 +29,7 @@ const Header: FC<IHeaderProps> = ({
         )
         : <div></div>}
       <div className='flex items-center space-x-2'>
-        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-[14px] font-bold" style={{ background: 'linear-gradient(145deg,#f1d79a,#b8914a)', color: '#13254a', fontFamily: '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","Noto Serif CJK JP",serif' }}>K</span>
+        <img src="/icon-192.png" alt="" width={28} height={28} className="w-7 h-7 rounded-lg" />
         <div className="text-[15px] font-bold tracking-wide" style={{ color: '#f4e7c8', fontFamily: '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","Noto Serif CJK JP",serif' }}>{title}</div>
       </div>
       {isMobile
