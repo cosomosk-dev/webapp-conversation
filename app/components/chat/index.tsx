@@ -165,7 +165,8 @@ const Chat: FC<IChatProps> = ({
     }
   }, [])
   const remaining = Math.max(0, FREE_LIMIT - usedToday)
-  const chargePendingRef = React.useRef(false)
+  const chargePendingRef = React.useRef(false) // 無料枠を1つ消費した送信(失敗時の返金用)
+  const gradePendingRef = React.useRef(false) // 答案を送った(課金済みでも立つ。採点後の記録・レビューリンク用)
   const refundUsed = () => {
     const u = readUsed()
     const next = Math.max(0, u - 1)
@@ -174,12 +175,14 @@ const Chat: FC<IChatProps> = ({
     setUsedToday(next)
   }
   useEffect(() => {
-    if (isResponding || !chargePendingRef.current)
+    if (isResponding || !gradePendingRef.current)
     { return }
+    gradePendingRef.current = false
+    const wasCharged = chargePendingRef.current
     chargePendingRef.current = false
     const last = chatList[chatList.length - 1]
     if (last && last.isAnswer && (!last.content || !last.content.trim())) {
-      refundUsed()
+      if (wasCharged) { refundUsed() }
     }
     else {
       // ホーム画面の「採点した数・平均点」用に記録(端末内のみ)
@@ -199,7 +202,8 @@ const Chat: FC<IChatProps> = ({
           const n = (Number(localStorage.getItem(REVIEW_COUNT_KEY)) || 0) + 1
           localStorage.setItem(REVIEW_COUNT_KEY, String(n))
           // 12点以上(20点満点)を取った採点の直後に表示。見た目・位置は従来のまま
-          const scoreRe = /(\d{1,2})\s*[/／]\s*20/g
+          // 小数の点数(14.5/20など)も正しく読む
+          const scoreRe = /(\d{1,2}(?:\.\d+)?)\s*[/／]\s*20/g
           const text = String(last?.content || '')
           let score = -1
           let m: RegExpExecArray | null
@@ -239,6 +243,7 @@ const Chat: FC<IChatProps> = ({
       chargePendingRef.current = true
       setUsedToday(used + 1)
     }
+    if (isAnswerSend) { gradePendingRef.current = true }
     const imageFiles: VisionFile[] = files.filter(file => file.progress !== -1).map(fileItem => ({
       type: 'image',
       transfer_method: fileItem.type,
