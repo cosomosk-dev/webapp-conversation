@@ -1,13 +1,14 @@
 'use client'
 import type { FC } from 'react'
 import React, { useEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import cn from 'classnames'
 import { useTranslation } from 'react-i18next'
 import Textarea from 'rc-textarea'
 import s from './style.module.css'
 import Answer from './answer'
 import Question from './question'
-import { GOLD, GOLD_LIGHT, NAVY, SERIF } from '@/app/components/cosmos/cards'
+import { CREAM, GOLD, GOLD_LIGHT, NAVY, SERIF, isQuestion } from '@/app/components/cosmos/cards'
 import type { FeedbackFunc } from './type'
 import type { ChatItem, VisionFile, VisionSettings } from '@/types/app'
 import { TransferMethod } from '@/types/app'
@@ -99,12 +100,14 @@ const Chat: FC<IChatProps> = ({
 
   // ---- キーボード表示時のオフセット(visualViewport fallback) ----
   const [keyboardOffset, setKeyboardOffset] = React.useState(0)
+  const [viewBox, setViewBox] = React.useState<{ top: number, height: number } | null>(null) // いま見えている範囲(キーボードを除く)
   useEffect(() => {
     const vv = window.visualViewport
     if (!vv) { return }
     const handleResize = () => {
       const offset = window.innerHeight - vv.height - vv.offsetTop
       setKeyboardOffset(Math.max(0, Math.round(offset)))
+      setViewBox({ top: Math.max(0, Math.round(vv.offsetTop)), height: Math.round(vv.height) })
     }
     vv.addEventListener('resize', handleResize)
     vv.addEventListener('scroll', handleResize)
@@ -266,7 +269,10 @@ const Chat: FC<IChatProps> = ({
   const handleKeyUp = (e: any) => {
     if (e.code === 'Enter') {
       e.preventDefault()
-      if (!e.shiftKey && !isUseInputMethod.current && !isResponding) { handleSend() }
+      if (!e.shiftKey && !isUseInputMethod.current && !isResponding) {
+        if (uiMode > 0) { sendAnswer() }
+        else { handleSend() }
+      }
     }
   }
 
@@ -288,6 +294,157 @@ const Chat: FC<IChatProps> = ({
 
   // 新しい会話(まだ自分の送信がない)のときはホーム画面を出す
   const hasUserMessage = chatList.some(item => !item.isAnswer)
+
+  // ---- 画面パターン(解説を広く見せる・答案を書きやすくする) ----
+  // 0: これまでの画面
+  // 1: 入力欄をスリムに(注記・リンクは画面の一番下へ移動)
+  // 2: 1 + 採点中〜採点後は入力欄を隠して、解説を画面いっぱいに表示
+  // 3: 2 + 答案は全画面のシートで書く(問題文を見ながら入力)
+  // プレビュー(-git- つきのURL)とローカルでは、画面上のチップで切り替えて比べられる。本番は DEFAULT_UI 固定
+  const DEFAULT_UI = 2
+  const [uiMode, setUiMode] = React.useState(DEFAULT_UI)
+  const [canSwitchUi, setCanSwitchUi] = React.useState(false)
+  useEffect(() => {
+    try {
+      if (!/-git-|localhost|127\.0\.0\.1/.test(window.location.hostname)) { return }
+      setCanSwitchUi(true)
+      const v = new URLSearchParams(window.location.search).get('ui') ?? sessionStorage.getItem('cosmosk_ui')
+      if (v !== null && /^[0-3]$/.test(v)) { setUiMode(Number(v)) }
+    }
+    catch { }
+  }, [])
+  const changeUi = (m: number) => {
+    setUiMode(m)
+    try { sessionStorage.setItem('cosmosk_ui', String(m)) }
+    catch { }
+  }
+
+  // いまどの場面か: 出題待ち / 答案を書く / 採点待ち / 採点結果を読む
+  const lastItem = chatList[chatList.length - 1]
+  const lastUserItem = [...chatList].reverse().find(item => !item.isAnswer)
+  const lastIsStart = !!lastUserItem && lastUserItem.content.trim() === '出題スタート'
+  const lastQuestionItem = [...chatList].reverse().find(item => item.isAnswer && isQuestion(item.content))
+  const phase: 'home' | 'asking' | 'answering' | 'grading' | 'graded' = !hasUserMessage
+    ? 'home'
+    : isResponding
+      ? (lastIsStart ? 'asking' : 'grading')
+      : (lastIsStart ? 'answering' : 'graded')
+  const questionReady = phase === 'answering' && !!lastItem?.isAnswer && !!lastItem.content
+  const canSaveLast = phase === 'graded' && !!lastItem?.isAnswer && !!lastItem.content
+
+  const blurActive = () => {
+    try { (document.activeElement as HTMLElement | null)?.blur?.() }
+    catch { }
+  }
+
+  // 採点後に同じ問題へもう一度答える(入力欄を出し直す)
+  const [rewriting, setRewriting] = React.useState(false)
+  useEffect(() => {
+    if (phase !== 'graded') { setRewriting(false) }
+  }, [phase])
+  const composerRef = useRef<any>(null)
+  // 入力欄をタップしたら、問題文が上から読める位置に寄せる(キーボードで狭くなるため)
+  const lastQuestionDomRef = useRef<HTMLDivElement>(null)
+  const scrollToQuestion = () => {
+    try { lastQuestionDomRef.current?.scrollIntoView({ block: 'start' }) }
+    catch { }
+  }
+  const showQuestionOnFocus = () => {
+    if (phase !== 'answering') { return } // 書き直し中は解説を見ながら書けるよう動かさない
+    setTimeout(scrollToQuestion, 350)
+  }
+  // キーボードが開ききって画面の高さが変わったら、もう一度寄せ直す
+  useEffect(() => {
+    if (phase !== 'answering') { return }
+    const el = composerRef.current?.resizableTextArea?.textArea
+    if (el && document.activeElement === el) { scrollToQuestion() }
+  }, [viewBox?.height])
+
+  // 全画面の答案シート(パターン3)。端末の「戻る」でも閉じられるよう履歴を1つ積む
+  const [sheetOpen, setSheetOpen] = React.useState(false)
+  const sheetInputRef = useRef<any>(null)
+  const openSheet = () => {
+    flushSync(() => setSheetOpen(true))
+    try { sheetInputRef.current?.focus() }
+    catch { }
+    try { window.history.pushState({ cosmosSheet: 1 }, '') }
+    catch { }
+  }
+  const closeSheet = () => {
+    setSheetOpen(false)
+    blurActive()
+    try {
+      if (window.history.state?.cosmosSheet) { window.history.back() }
+    }
+    catch { }
+  }
+  useEffect(() => {
+    if (!sheetOpen) { return }
+    const onPop = () => {
+      setSheetOpen(false)
+      blurActive()
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [sheetOpen])
+
+  const startRewrite = () => {
+    if (uiMode >= 3) {
+      openSheet()
+      return
+    }
+    flushSync(() => setRewriting(true))
+    try { composerRef.current?.focus() }
+    catch { }
+  }
+
+  // 送信したらキーボードを閉じる(採点結果をキーボードで隠さない)
+  const sendAnswer = () => {
+    if (isResponding || !queryRef.current.trim()) { return }
+    handleSend()
+    blurActive()
+    setRewriting(false)
+    if (sheetOpen) { closeSheet() }
+  }
+
+  // 採点が終わったら「あなたの答案」の位置まで戻して、点数から読めるようにする(パターン2・3)
+  const lastUserDomRef = useRef<HTMLDivElement>(null)
+  const wasRespondingRef = useRef(false)
+  useEffect(() => {
+    const was = wasRespondingRef.current
+    wasRespondingRef.current = !!isResponding
+    if (uiMode < 2 || !was || isResponding || lastIsStart) { return }
+    const timer = setTimeout(() => {
+      try { lastUserDomRef.current?.scrollIntoView({ block: 'start' }) }
+      catch { }
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [isResponding])
+
+  const saveFavAt = (idx: number) => {
+    const item = chatList[idx]
+    const prevUser = chatList[idx - 1]
+    const prevQ = chatList[idx - 2]
+    if (!item || !prevUser) { return }
+    try {
+      const favs: { id: string, content: string, date: string }[] = JSON.parse(localStorage.getItem('cosmosk_favs') || '[]')
+      if (favs.some(f => f.id === item.id)) {
+        notify({ type: 'info', message: 'この問題はすでに保存済みです', duration: 2000 })
+        return
+      }
+      const content = [
+        (prevQ && prevQ.isAnswer) ? `## 【問題】\n\n${prevQ.content}` : '',
+        `## 【あなたの答案】\n\n${prevUser.content}`,
+        `## 【採点結果】\n\n${item.content}`,
+      ].filter(Boolean).join('\n\n---\n\n')
+      favs.unshift({ id: item.id, content, date: new Date().toLocaleString('ja-JP') })
+      localStorage.setItem('cosmosk_favs', JSON.stringify(favs))
+      notify({ type: 'success', message: '⭐ お気に入りに保存しました', duration: 2000 })
+    }
+    catch {
+      notify({ type: 'error', message: '保存に失敗しました', duration: 2000 })
+    }
+  }
   const [showHowTo, setShowHowTo] = React.useState(false)
   const [stats, setStats] = React.useState<{ n: number, sum: number }>({ n: 0, sum: 0 })
   useEffect(() => {
@@ -323,7 +480,7 @@ const Chat: FC<IChatProps> = ({
   const avg = stats.n > 0 ? (stats.sum / stats.n).toFixed(1) : '—'
 
   return (
-    <div className={cn(!feedbackDisabled && 'px-3.5', 'min-h-full')}>
+    <div className={cn(!feedbackDisabled && 'px-3.5', 'min-h-full', uiMode > 0 && '-mb-[90px]')}>
       {hasUserMessage && <a href="/favorites" className="fixed z-20 top-[54px] right-3 text-xs font-bold rounded-full px-3 py-1 shadow-sm" style={{ background: '#fff', color: NAVY, border: '1px solid #e7e0d0' }}>★ 保存した問題</a>}
       {!hasUserMessage && (
         <div className="-mx-3.5 -mt-[68px] pb-10">
@@ -430,31 +587,13 @@ const Chat: FC<IChatProps> = ({
           if (item.isAnswer) {
             const isLast = item.id === chatList[chatList.length - 1].id
             const prevUser = chatList[idx - 1]
-            const prevQ = chatList[idx - 2]
             const isDone = !item.isOpeningStatement && !(isResponding && isLast) && !!item.content && !!prevUser && !prevUser.isAnswer
             const canSave = isDone && prevUser.content.trim() !== '出題スタート'
-            const saveFav = () => {
-              try {
-                const favs: { id: string, content: string, date: string }[] = JSON.parse(localStorage.getItem('cosmosk_favs') || '[]')
-                if (favs.some(f => f.id === item.id)) {
-                  notify({ type: 'info', message: 'この問題はすでに保存済みです', duration: 2000 })
-                  return
-                }
-                const content = [
-                  (prevQ && prevQ.isAnswer) ? `## 【問題】\n\n${prevQ.content}` : '',
-                  `## 【あなたの答案】\n\n${prevUser.content}`,
-                  `## 【採点結果】\n\n${item.content}`,
-                ].filter(Boolean).join('\n\n---\n\n')
-                favs.unshift({ id: item.id, content, date: new Date().toLocaleString('ja-JP') })
-                localStorage.setItem('cosmosk_favs', JSON.stringify(favs))
-                notify({ type: 'success', message: '⭐ お気に入りに保存しました', duration: 2000 })
-              }
-              catch {
-                notify({ type: 'error', message: '保存に失敗しました', duration: 2000 })
-              }
-            }
+            const saveFav = () => saveFavAt(idx)
+            // パターン2・3では、最後の採点結果のボタンは画面下の固定バーに出す(問題の下の「次の問題」は残す)
+            const showInlineActions = isDone && !(uiMode >= 2 && isLast && phase === 'graded')
             return (
-              <div key={item.id}>
+              <div key={item.id} ref={item.id === lastQuestionItem?.id ? lastQuestionDomRef : undefined} style={{ scrollMarginTop: 44 }}>
                 <Answer
                   item={item}
                   feedbackDisabled={feedbackDisabled}
@@ -462,7 +601,7 @@ const Chat: FC<IChatProps> = ({
                   isResponding={isResponding && isLast}
                   suggestionClick={suggestionClick}
                 />
-                {isDone && (
+                {showInlineActions && (
                   <div className="mt-3 flex gap-2">
                     {canSave && <button onClick={saveFav} className="shrink-0 text-[13px] font-bold rounded-xl px-4 py-3 bg-white" style={{ color: NAVY, border: '1px solid #e7e0d0' }}>★ 保存</button>}
                     <button onClick={() => suggestionClick('出題スタート')} className="flex-1 text-[14px] font-bold rounded-xl px-4 py-3" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: GOLD_LIGHT }}>▶ 次の問題</button>
@@ -473,18 +612,139 @@ const Chat: FC<IChatProps> = ({
             )
           }
           return (
-            <Question
-              key={item.id}
-              id={item.id}
-              content={item.content}
-              useCurrentUserAvatar={useCurrentUserAvatar}
-              imgSrcs={(item.message_files && item.message_files?.length > 0) ? item.message_files.map(item => item.url) : []}
-            />
+            <div key={item.id} ref={item.id === lastUserItem?.id ? lastUserDomRef : undefined} style={{ scrollMarginTop: 44 }}>
+              <Question
+                id={item.id}
+                content={item.content}
+                useCurrentUserAvatar={useCurrentUserAvatar}
+                imgSrcs={(item.message_files && item.message_files?.length > 0) ? item.message_files.map(item => item.url) : []}
+              />
+            </div>
           )
         })}
       </div>
+      {uiMode > 0 && hasUserMessage && (
+        <div className="mt-8 text-center text-[10.5px] leading-[1.9] text-gray-400">
+          <div>※AIによる採点のため、不正確な場合があります</div>
+          <div><a href="/about" className="underline" style={{ color: NAVY }}>📩 監修者に相談・感想 →</a></div>
+          <div><a href="/about" className="text-gray-500 underline">👤企画・監修:行政書士 加藤貴大</a><span className="mx-1">・</span><a href="/privacy" className="text-gray-500 underline">プライバシーポリシー</a></div>
+        </div>
+      )}
+      {canSwitchUi && hasUserMessage && (
+        <div className="fixed z-20 top-[54px] left-3 flex items-center gap-1 rounded-full pl-2.5 pr-1 py-0.5 text-[11px] shadow-sm" style={{ background: '#fff', border: '1px solid #e7e0d0', color: '#6b7280' }}>
+          比較
+          {['今', '1', '2', '3'].map((label, m) => (
+            <button key={m} type="button" onClick={() => changeUi(m)} className="w-6 h-6 rounded-full font-bold" style={uiMode === m ? { background: NAVY, color: GOLD_LIGHT } : { color: NAVY }}>{label}</button>
+          ))}
+        </div>
+      )}
+      {uiMode > 0 && !isHideSendInput && hasUserMessage && (() => {
+        const wrapClass = 'fixed z-10 left-1/2 transform -translate-x-1/2 pc:ml-[122px] tablet:ml-[96px] mobile:ml-0 pc:w-[794px] tablet:w-[794px] max-w-full mobile:w-full px-3.5'
+        const wrapStyle = {
+          bottom: keyboardOffset > 0 ? `${keyboardOffset}px` : '0px',
+          background: CREAM,
+          borderTop: '1px solid #e7e0d0',
+          paddingTop: '6px',
+          paddingBottom: keyboardOffset > 0 ? '6px' : 'calc(env(safe-area-inset-bottom, 0px) + 6px)',
+        }
+        const navyBtn = { background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: GOLD_LIGHT }
+        const whiteBtn = { color: NAVY, border: '1px solid #e7e0d0' }
+        const freeLeft = !premium ? <span className="text-gray-500">無料採点 あと{remaining}回</span> : <span />
+        const reviewLink = showReviewLink
+          ? <a href="https://play.google.com/store/apps/details?id=com.cosmosk.app" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">🌸 Google Playで評価する</a>
+          : null
+        const showComposer = uiMode === 1 || (uiMode === 2 && (questionReady || rewriting))
+        if (showComposer) {
+          return (
+            <div className={wrapClass} style={wrapStyle}>
+              <div className="flex items-center justify-between gap-2 text-[11px] mb-1 px-1">
+                <span className="flex items-center gap-2 whitespace-nowrap">
+                  {rewriting && <button type="button" onClick={() => { setRewriting(false); blurActive() }} className="font-bold" style={{ color: NAVY }}>✕ やめる</button>}
+                  {freeLeft}
+                </span>
+                <span className="flex items-center gap-2 whitespace-nowrap">
+                  {!rewriting && reviewLink}
+                  <span className={`h-5 leading-5 px-2 rounded-md ${query.length > 40 ? 'bg-red-50 text-red-600 font-bold' : 'bg-white text-gray-500'}`}>{query.length > 40 ? `${query.length}/40 +${query.length - 40}` : `${query.length}/40`}</span>
+                </span>
+              </div>
+              <div className="flex items-end gap-2 p-1.5 bg-white border-[1.5px] rounded-2xl" style={{ borderColor: '#e7e0d0' }}>
+                <Textarea
+                  ref={composerRef}
+                  onFocus={showQuestionOnFocus}
+                  className="block flex-1 min-w-0 px-2 py-[7px] leading-6 max-h-none text-base text-gray-700 outline-none appearance-none resize-none bg-transparent"
+                  value={query}
+                  onChange={handleContentChange}
+                  onKeyUp={handleKeyUp}
+                  onKeyDown={handleKeyDown}
+                  placeholder='答案を40字以内で入力'
+                  autoSize={{ minRows: 1, maxRows: 4 }}
+                />
+                <button type="button" aria-label="送信" onClick={sendAnswer} className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-[15px] ${isResponding ? 'opacity-40' : ''}`} style={{ background: query.trim() ? NAVY : '#d9d4c7', color: query.trim() ? GOLD_LIGHT : '#fff' }}>➤</button>
+              </div>
+            </div>
+          )
+        }
+        if (uiMode === 1 || phase === 'asking' || phase === 'grading') { return null }
+        const infoLine = (reviewLink || !premium) && (
+          <div className="flex items-center justify-between text-[11px] mb-1 px-1">{freeLeft}{reviewLink}</div>
+        )
+        if (phase === 'graded') {
+          return (
+            <div className={wrapClass} style={wrapStyle}>
+              {infoLine}
+              <div className="flex gap-2">
+                {canSaveLast && <button type="button" onClick={() => saveFavAt(chatList.length - 1)} className="shrink-0 text-[13px] font-bold rounded-xl px-3.5 py-3 bg-white" style={whiteBtn}>★ 保存</button>}
+                <button type="button" onClick={startRewrite} className="shrink-0 text-[13px] font-bold rounded-xl px-3.5 py-3 bg-white" style={whiteBtn}>✏️ 書き直す</button>
+                <button type="button" onClick={() => suggestionClick('出題スタート')} className="flex-1 text-[14px] font-bold rounded-xl px-3 py-3" style={navyBtn}>▶ 次の問題</button>
+              </div>
+            </div>
+          )
+        }
+        // 答案を書く場面(パターン3)。問題が届いていないときは出し直しボタンだけ出す
+        return (
+          <div className={wrapClass} style={wrapStyle}>
+            {infoLine}
+            {questionReady
+              ? <button type="button" onClick={openSheet} className="w-full text-[15px] font-bold rounded-xl px-4 py-3.5" style={navyBtn}>✏️ 答案を書く{query.trim() ? '(続きから)' : ''}</button>
+              : <button type="button" onClick={() => suggestionClick('出題スタート')} className="w-full text-[14px] font-bold rounded-xl px-4 py-3" style={navyBtn}>▶ 問題を出す</button>}
+          </div>
+        )
+      })()}
+      {sheetOpen && (
+        <div className="fixed left-0 right-0 z-30 flex flex-col" style={{ top: viewBox ? `${viewBox.top}px` : 0, height: viewBox ? `${viewBox.height}px` : '100%', background: CREAM, overscrollBehavior: 'contain' }}>
+          <div className="shrink-0 flex items-center justify-between h-11 px-2" style={{ background: '#0f1d38' }}>
+            <button type="button" onClick={closeSheet} className="text-[13px] font-bold px-2 py-2" style={{ color: GOLD_LIGHT }}>✕ 閉じる</button>
+            <span className="text-[14px] font-bold" style={{ color: '#f4e7c8', fontFamily: SERIF }}>答案を書く</span>
+            <span className="min-w-[76px] pr-2 text-right text-[11px]" style={{ color: 'rgba(244,231,200,.8)' }}>{!premium ? `無料 あと${remaining}回` : ''}</span>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3" style={{ overscrollBehavior: 'contain' }}>
+            <div className="text-[12px] font-bold mb-1" style={{ color: GOLD, fontFamily: SERIF }}>【問題】</div>
+            <div className="text-[14px] leading-[1.8] text-gray-800 whitespace-pre-wrap">{(lastQuestionItem?.content || '').replace(/^\s*【問題】\s*/, '')}</div>
+          </div>
+          <div className="shrink-0 px-3.5 pt-2 bg-white" style={{ borderTop: '1px solid #e7e0d0', paddingBottom: keyboardOffset > 0 ? '8px' : 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}>
+            <div className="flex items-end gap-2">
+              <div className="flex-1 min-w-0 rounded-2xl border-[1.5px] px-2 py-1" style={{ borderColor: GOLD }}>
+                <Textarea
+                  ref={sheetInputRef}
+                  className="block w-full px-1 py-1 leading-6 max-h-none text-base text-gray-700 outline-none appearance-none resize-none bg-transparent"
+                  value={query}
+                  onChange={handleContentChange}
+                  onKeyUp={handleKeyUp}
+                  onKeyDown={handleKeyDown}
+                  placeholder='答案を40字以内で入力'
+                  autoSize={{ minRows: 3, maxRows: 5 }}
+                />
+              </div>
+              <div className="shrink-0 flex flex-col items-center gap-1.5">
+                <span className={`h-5 leading-5 px-2 rounded-md text-[12px] ${query.length > 40 ? 'bg-red-50 text-red-600 font-bold' : 'bg-gray-50 text-gray-500'}`}>{query.length > 40 ? `${query.length}/40 +${query.length - 40}` : `${query.length}/40`}</span>
+                <button type="button" onClick={sendAnswer} className="rounded-xl px-3.5 py-3 text-[14px] font-bold whitespace-nowrap" style={{ background: query.trim() ? NAVY : '#d9d4c7', color: query.trim() ? GOLD_LIGHT : '#fff' }}>採点 ➤</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {
-        !isHideSendInput && hasUserMessage && (
+        uiMode === 0 && !isHideSendInput && hasUserMessage && (
           <div
             className='fixed z-10 left-1/2 transform -translate-x-1/2 pc:ml-[122px] tablet:ml-[96px] mobile:ml-0 pc:w-[794px] tablet:w-[794px] max-w-full mobile:w-full px-3.5'
             style={{
