@@ -185,7 +185,13 @@ const Chat: FC<IChatProps> = ({
         try {
           const n = (Number(localStorage.getItem(REVIEW_COUNT_KEY)) || 0) + 1
           localStorage.setItem(REVIEW_COUNT_KEY, String(n))
-          if (n >= 3) {
+          // 12点以上(20点満点)を取った採点の直後に表示。見た目・位置は従来のまま
+          const scoreRe = /(\d{1,2})\s*[/／]\s*20/g
+          const text = String(last?.content || '')
+          let score = -1
+          let m: RegExpExecArray | null
+          while ((m = scoreRe.exec(text)) !== null) { score = Number(m[1]) }
+          if (n >= 1 && score >= 12 && score <= 20) {
             setShowReviewLink(true)
           }
         }
