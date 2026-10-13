@@ -268,9 +268,33 @@ const Chat: FC<IChatProps> = ({
     handleSend()
   }
 
+  // 新しい会話(まだ自分の送信がない)のときだけ、使い方と最初のボタンを出す
+  const hasUserMessage = chatList.some(item => !item.isAnswer)
+
   return (
     <div className={cn(!feedbackDisabled && 'px-3.5', 'min-h-full')}>
       <a href="/favorites" className="fixed z-20 top-[46px] right-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ お気に入り</a>
+      {!hasUserMessage && (
+        <div className="mt-10 mb-6 mx-auto max-w-md bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+          <div className="text-[11px] tracking-wide text-gray-400 mb-1">コスモスK ｜ 行政書士試験 記述式</div>
+          <div className="text-base font-bold text-gray-800 mb-3">使い方は3ステップ</div>
+          <ol className="space-y-2 text-sm text-gray-700 mb-4">
+            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span><span>下のボタンを押すと、行政書士監修の<b>記述式問題</b>が1問出ます</span></li>
+            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span><span>答案を<b>40字以内</b>で書いて送信</span></li>
+            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</span><span>AIが<b>20点満点</b>で採点し、足りない点を解説。「▶ 次の問題」で続けられます</span></li>
+          </ol>
+          <button
+            onClick={() => suggestionClick('出題スタート')}
+            disabled={!!isResponding}
+            className={`w-full py-3 rounded-full bg-blue-600 text-white text-sm font-bold shadow-sm ${isResponding ? 'opacity-40' : ''}`}
+          >
+            ▶ 最初の問題を出す
+          </button>
+          {!premium && (
+            <div className="mt-2 text-[11px] text-center text-gray-500">問題を見るのは無料。AI採点は無料で{FREE_LIMIT}回（あと{remaining}回）</div>
+          )}
+        </div>
+      )}
       {showPaywall && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 px-6" onClick={() => setShowPaywall(false)}>
           <div className="w-full max-w-sm bg-white rounded-2xl p-5 shadow-lg text-center" onClick={e => e.stopPropagation()}>
@@ -427,6 +451,7 @@ const Chat: FC<IChatProps> = ({
                 onChange={handleContentChange}
                 onKeyUp={handleKeyUp}
                 onKeyDown={handleKeyDown}
+                placeholder={hasUserMessage ? '答案を40字以内で入力' : 'まず上のボタンで問題を出す'}
                 autoSize
               />
               <div className="absolute bottom-2 right-6 flex items-center h-8">
