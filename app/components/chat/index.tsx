@@ -451,7 +451,7 @@ const Chat: FC<IChatProps> = ({
                 onChange={handleContentChange}
                 onKeyUp={handleKeyUp}
                 onKeyDown={handleKeyDown}
-                placeholder={hasUserMessage ? '答案を40字以内で入力' : 'まず上の「▶ 最初の問題を出す」を押す'}
+                placeholder={hasUserMessage ? '答案を40字以内で入力' : 'まず上のボタンで問題を出す'}
                 autoSize
               />
               <div className="absolute bottom-2 right-6 flex items-center h-8">
