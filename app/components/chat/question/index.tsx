@@ -13,6 +13,26 @@ type IQuestionProps = Pick<IChatItem, 'id' | 'content' | 'useCurrentUserAvatar'>
 
 const Question: FC<IQuestionProps> = ({ id, content, useCurrentUserAvatar, imgSrcs }) => {
   const userName = ''
+  // コスモスK: 「出題スタート」は区切り線、答案は「あなたの答案」カードで表示
+  if ((content || '').trim() === '出題スタート') {
+    return (
+      <div className='flex items-center gap-3 text-[11px] font-bold' style={{ color: '#b8914a' }} key={id}>
+        <div className='flex-1 h-px' style={{ background: '#e7e0d0' }} />
+        新しい問題
+        <div className='flex-1 h-px' style={{ background: '#e7e0d0' }} />
+      </div>
+    )
+  }
+  if (!imgSrcs || imgSrcs.length === 0) {
+    return (
+      <div className='flex justify-end' key={id}>
+        <div className='max-w-[88%] rounded-2xl px-4 py-3 text-white' style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)' }}>
+          <div className='text-[10.5px] font-bold mb-1' style={{ color: '#f1d79a' }}>あなたの答案({(content || '').length}字)</div>
+          <div className='text-[14px] leading-relaxed whitespace-pre-wrap'>{content}</div>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className='flex items-start justify-end' key={id}>
       <div>

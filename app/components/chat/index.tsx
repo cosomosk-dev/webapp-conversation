@@ -7,6 +7,7 @@ import Textarea from 'rc-textarea'
 import s from './style.module.css'
 import Answer from './answer'
 import Question from './question'
+import { GOLD, GOLD_LIGHT, NAVY, SERIF } from '@/app/components/cosmos/cards'
 import type { FeedbackFunc } from './type'
 import type { ChatItem, VisionFile, VisionSettings } from '@/types/app'
 import { TransferMethod } from '@/types/app'
@@ -181,6 +182,18 @@ const Chat: FC<IChatProps> = ({
       refundUsed()
     }
     else {
+      // ホーム画面の「採点した数・平均点」用に記録(端末内のみ)
+      try {
+        const sm = String(last?.content || '').match(/採点結果[^\n]*?(\d{1,2}(?:\.\d+)?)\s*[/／]\s*20/)
+        if (sm) {
+          const sc = Number(sm[1])
+          if (sc >= 0 && sc <= 20) {
+            const v = JSON.parse(localStorage.getItem('cosmosk_stats') || '{}')
+            localStorage.setItem('cosmosk_stats', JSON.stringify({ n: (Number(v.n) || 0) + 1, sum: (Number(v.sum) || 0) + sc }))
+          }
+        }
+      }
+      catch { }
       if (REVIEW_ENABLED) {
         try {
           const n = (Number(localStorage.getItem(REVIEW_COUNT_KEY)) || 0) + 1
@@ -268,31 +281,79 @@ const Chat: FC<IChatProps> = ({
     handleSend()
   }
 
-  // 新しい会話(まだ自分の送信がない)のときだけ、使い方と最初のボタンを出す
+  // 新しい会話(まだ自分の送信がない)のときはホーム画面を出す
   const hasUserMessage = chatList.some(item => !item.isAnswer)
+  const [showHowTo, setShowHowTo] = React.useState(false)
+  const [stats, setStats] = React.useState<{ n: number, sum: number }>({ n: 0, sum: 0 })
+  useEffect(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem('cosmosk_stats') || '{}')
+      setStats({ n: Number(v.n) || 0, sum: Number(v.sum) || 0 })
+    }
+    catch { }
+  }, [hasUserMessage])
+  const daysToExam = (() => {
+    const exam = new Date('2026-11-08T00:00:00+09:00').getTime()
+    const d = Math.ceil((exam - Date.now()) / 86400000)
+    return d
+  })()
+  const avg = stats.n > 0 ? (stats.sum / stats.n).toFixed(1) : '—'
 
   return (
     <div className={cn(!feedbackDisabled && 'px-3.5', 'min-h-full')}>
-      <a href="/favorites" className="fixed z-20 top-[46px] right-3 text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ お気に入り</a>
+      {hasUserMessage && <a href="/favorites" className="fixed z-20 top-[54px] right-3 text-xs font-bold rounded-full px-3 py-1 shadow-sm" style={{ background: '#fff', color: NAVY, border: '1px solid #e7e0d0' }}>★ 保存した問題</a>}
       {!hasUserMessage && (
-        <div className="mt-10 mb-6 mx-auto max-w-md bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-          <div className="text-[11px] tracking-wide text-gray-400 mb-1">コスモスK ｜ 行政書士試験 記述式</div>
-          <div className="text-base font-bold text-gray-800 mb-3">使い方は3ステップ</div>
-          <ol className="space-y-2 text-sm text-gray-700 mb-4">
-            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span><span>下のボタンを押すと、行政書士監修の<b>記述式問題</b>が1問出ます</span></li>
-            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span><span>答案を<b>40字以内</b>で書いて送信</span></li>
-            <li className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</span><span>AIが<b>20点満点</b>で採点し、足りない点を解説。「▶ 次の問題」で続けられます</span></li>
-          </ol>
-          <button
-            onClick={() => suggestionClick('出題スタート')}
-            disabled={!!isResponding}
-            className={`w-full py-3 rounded-full bg-blue-600 text-white text-sm font-bold shadow-sm ${isResponding ? 'opacity-40' : ''}`}
-          >
-            ▶ 最初の問題を出す
-          </button>
-          {!premium && (
-            <div className="mt-2 text-[11px] text-center text-gray-500">問題を見るのは無料。AI採点は無料で{FREE_LIMIT}回（あと{remaining}回）</div>
-          )}
+        <div className="-mx-3.5 -mt-12 pb-10">
+          <div className="px-5 pt-4 pb-16 rounded-b-[28px]" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: '#f4e7c8' }}>
+            <div className="text-[12px] opacity-80">行政書士試験 記述式トレーニング</div>
+            <h1 className="mt-2 text-[24px] leading-[1.45] font-bold" style={{ fontFamily: SERIF }}>40字で書いて、<br />その場で20点採点。</h1>
+            <p className="text-[12.5px] opacity-80 mt-1.5">行政書士が監修した記述式92問 ・ 部分点つき</p>
+            {daysToExam > 0 && (
+              <div className="inline-flex items-center gap-1.5 mt-3 text-[12px] px-3 py-1 rounded-full" style={{ background: 'rgba(241,215,154,.14)', border: '1px solid rgba(241,215,154,.35)', color: GOLD_LIGHT }}>⏳ 本試験まで <b>{daysToExam}日</b></div>
+            )}
+          </div>
+          <div className="px-4 -mt-11">
+            <div className="grid grid-cols-3 gap-2.5">
+              {[['92', '収録問題'], [String(stats.n), '採点した数'], [avg, '平均点']].map(([b, l]) => (
+                <div key={l} className="bg-white rounded-2xl py-3 text-center" style={{ border: '1px solid #e7e0d0', boxShadow: '0 10px 30px rgba(15,29,56,.10)' }}>
+                  <b className="block text-[22px] leading-tight" style={{ fontFamily: SERIF, color: NAVY }}>{b}</b>
+                  <small className="text-[10.5px] text-gray-500">{l}</small>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => suggestionClick('出題スタート')}
+              disabled={!!isResponding}
+              className={`mt-4 w-full rounded-[20px] px-5 py-5 flex items-center justify-between text-left ${isResponding ? 'opacity-50' : ''}`}
+              style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', border: `1px solid ${GOLD}`, boxShadow: '0 10px 30px rgba(15,29,56,.18)' }}
+            >
+              <span>
+                <span className="block text-[21px] font-bold tracking-wide" style={{ fontFamily: SERIF, color: GOLD_LIGHT }}>問題を解く</span>
+                <span className="block text-[11.5px] mt-0.5" style={{ color: 'rgba(244,231,200,.8)' }}>ランダムに1問出題 ・ 時間制限なし</span>
+              </span>
+              <span className="w-12 h-12 rounded-full flex items-center justify-center text-lg" style={{ background: GOLD_LIGHT, color: NAVY }}>▶</span>
+            </button>
+            <div className="grid grid-cols-2 gap-2.5 mt-3">
+              <a href="/favorites" className="bg-white rounded-2xl px-3 py-3 text-[13px] flex items-center gap-2" style={{ border: '1px solid #e7e0d0', color: '#1b2236' }}><span style={{ color: GOLD }}>★</span>保存した問題</a>
+              <button onClick={() => setShowHowTo(v => !v)} className="bg-white rounded-2xl px-3 py-3 text-[13px] flex items-center gap-2 text-left" style={{ border: '1px solid #e7e0d0', color: '#1b2236' }}><span>📖</span>使い方</button>
+            </div>
+            {showHowTo && (
+              <ol className="mt-3 bg-white rounded-2xl p-4 space-y-2 text-[13px] text-gray-700" style={{ border: '1px solid #e7e0d0' }}>
+                {['「問題を解く」で記述式問題が1問出ます', '答案を40字以内で書いて送信', 'AIが20点満点で採点。採点基準ごとに✓・△(部分点)・✕と点数が出ます', '「▶ 次の問題」で続けられます。気になる問題は★で保存'].map((t, i) => (
+                  <li key={i} className="flex gap-2"><span className="shrink-0 w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center" style={{ background: NAVY, color: GOLD_LIGHT }}>{i + 1}</span><span>{t}</span></li>
+                ))}
+              </ol>
+            )}
+            <div className="mt-3 text-center text-[11.5px] text-gray-500">
+              {premium ? '採点し放題プランをご利用中' : <>AI採点は無料で{FREE_LIMIT}回(<b style={{ color: GOLD }}>あと{remaining}回</b>)</>}
+            </div>
+            <a href="/about" className="mt-5 flex items-center gap-3 bg-white rounded-2xl px-4 py-3" style={{ border: '1px solid #e7e0d0' }}>
+              <span className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0" style={{ background: NAVY, color: GOLD_LIGHT, border: `1.5px solid ${GOLD}` }}>監修</span>
+              <span className="flex-1"><span className="block text-[11px] text-gray-500">企画・監修</span><span className="block text-[13.5px]" style={{ color: '#1b2236' }}>行政書士 加藤貴大</span></span>
+              <span className="text-[11px]" style={{ color: GOLD }}>相談・感想 →</span>
+            </a>
+            <div className="mt-3 text-center text-[10px] text-gray-400">※AIによる採点のため、不正確な場合があります ・ <a href="/privacy" className="underline">プライバシーポリシー</a></div>
+          </div>
         </div>
       )}
       {showPaywall && (
@@ -306,7 +367,7 @@ const Chat: FC<IChatProps> = ({
                 <>
                   <button
                     onClick={() => { try { (window as any).CosmosBilling.subscribe() } catch { } }}
-                    className="w-full py-2 rounded-full bg-blue-600 text-white text-sm font-bold mb-2"
+                    className="w-full py-2 rounded-full text-sm font-bold mb-2" style={{ background: NAVY, color: GOLD_LIGHT }}
                   >
                     採点し放題プラン（月500円）に登録
                   </button>
@@ -360,9 +421,9 @@ const Chat: FC<IChatProps> = ({
                   suggestionClick={suggestionClick}
                 />
                 {isDone && (
-                  <div className="mt-2 ml-12 flex gap-2">
-                    {canSave && <button onClick={saveFav} className="text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm">⭐ この問題を保存</button>}
-                    <button onClick={() => suggestionClick('出題スタート')} className="text-xs text-white bg-blue-600 border border-blue-600 rounded-full px-3 py-1 shadow-sm">▶ 次の問題</button>
+                  <div className="mt-3 flex gap-2">
+                    {canSave && <button onClick={saveFav} className="shrink-0 text-[13px] font-bold rounded-xl px-4 py-3 bg-white" style={{ color: NAVY, border: '1px solid #e7e0d0' }}>★ 保存</button>}
+                    <button onClick={() => suggestionClick('出題スタート')} className="flex-1 text-[14px] font-bold rounded-xl px-4 py-3" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: GOLD_LIGHT }}>▶ 次の問題</button>
                   </div>
 
                 )}
@@ -381,11 +442,14 @@ const Chat: FC<IChatProps> = ({
         })}
       </div>
       {
-        !isHideSendInput && (
+        !isHideSendInput && hasUserMessage && (
           <div
-            className='fixed z-10 left-1/2 transform -translate-x-1/2 pc:ml-[122px] tablet:ml-[96px] mobile:ml-0 pc:w-[794px] tablet:w-[794px] max-w-full mobile:w-full px-3.5 bg-white'
+            className='fixed z-10 left-1/2 transform -translate-x-1/2 pc:ml-[122px] tablet:ml-[96px] mobile:ml-0 pc:w-[794px] tablet:w-[794px] max-w-full mobile:w-full px-3.5'
             style={{
               bottom: keyboardOffset > 0 ? `${keyboardOffset}px` : '0px',
+              background: '#f6f3ec',
+              borderTop: '1px solid #e7e0d0',
+              paddingTop: '6px',
               paddingBottom: keyboardOffset > 0 ? '4px' : 'calc(env(safe-area-inset-bottom, 0px) + 4px)',
             }}
           >
@@ -396,7 +460,7 @@ const Chat: FC<IChatProps> = ({
             {keyboardOffset <= 0 && (
               <a
                 href="/about"
-                className="block mt-1 text-center text-xs text-blue-600 underline"
+                className="block mt-1 text-center text-xs underline" style={{ color: NAVY }}
               >
                 📩 監修者に相談・感想 →
               </a>
@@ -407,7 +471,7 @@ const Chat: FC<IChatProps> = ({
                 <a href="https://play.google.com/store/apps/details?id=com.cosmosk.app" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">🌸 Google Playで評価する</a>
               </div>
             )}
-            <div className='p-[5.5px] max-h-[150px] bg-white border-[1.5px] border-gray-200 rounded-xl overflow-y-auto'>
+            <div className='p-[5.5px] max-h-[150px] bg-white border-[1.5px] rounded-2xl overflow-y-auto' style={{ borderColor: '#e7e0d0' }}>
               {
                 visionConfig?.enabled && (
                   <>
@@ -451,7 +515,7 @@ const Chat: FC<IChatProps> = ({
                 onChange={handleContentChange}
                 onKeyUp={handleKeyUp}
                 onKeyDown={handleKeyDown}
-                placeholder={hasUserMessage ? '答案を40字以内で入力' : 'まず上のボタンで問題を出す'}
+                placeholder='答案を40字以内で入力'
                 autoSize
               />
               <div className="absolute bottom-2 right-6 flex items-center h-8">
@@ -464,7 +528,7 @@ const Chat: FC<IChatProps> = ({
                     </div>
                   }
                 >
-                  <div className={`${s.sendBtn} ${query.trim() ? s.sendBtnActive : ''} w-8 h-8 cursor-pointer rounded-md ${isResponding ? 'opacity-40 !cursor-not-allowed' : ''}`} onClick={handleSend}></div>
+                  <div className={`w-9 h-9 cursor-pointer rounded-full flex items-center justify-center text-[15px] ${isResponding ? 'opacity-40 !cursor-not-allowed' : ''}`} style={{ background: query.trim() ? NAVY : '#d9d4c7', color: query.trim() ? GOLD_LIGHT : '#fff' }} onClick={handleSend}>➤</div>
                 </Tooltip>
               </div>
             </div>

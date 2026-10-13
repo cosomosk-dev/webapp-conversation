@@ -40,12 +40,13 @@ const Sidebar: FC<ISidebarProps> = ({
             onClick={() => { onCurrentIdChange('-1') }}
             className="group block w-full flex-shrink-0 !justify-start !h-9 text-primary-600 items-center text-sm"
           >
-            <PencilSquareIcon className="mr-2 h-4 w-4" /> {t('app.chat.newChat')}
+            <PencilSquareIcon className="mr-2 h-4 w-4" /> ホーム(問題を解く)
           </Button>
         </div>
       )}
 
-      <nav className="mt-4 flex-1 space-y-1 bg-white p-4 !pt-0">
+      <div className="px-4 mt-4 mb-1 text-[11px] font-bold text-gray-400">これまでの記録</div>
+      <nav className="flex-1 space-y-1 bg-white p-4 !pt-0">
         {list.map((item) => {
           const isCurrent = item.id === currentId
           const ItemIcon
@@ -70,7 +71,15 @@ const Sidebar: FC<ISidebarProps> = ({
                 )}
                 aria-hidden="true"
               />
-              {item.name}
+              {(() => {
+                if (item.id === '-1') { return 'いまの記録' }
+                const ts = Number((item as any).created_at)
+                if (ts) {
+                  const d = new Date(ts * 1000)
+                  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')} の記録`
+                }
+                return item.name
+              })()}
             </div>
           )
         })}

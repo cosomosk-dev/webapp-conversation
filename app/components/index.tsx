@@ -159,6 +159,15 @@ const Main: FC<IMainProps> = () => {
   }
   useEffect(handleConversationSwitch, [currConversationId, inited])
 
+  // コスモスK: 「開始」ボタンの画面を飛ばして、新しい会話は自動で開始(ホーム画面を出す)
+  useEffect(() => {
+    if (!inited || !promptConfig || !isNewConversation || isChatStarted || isResponding) { return }
+    if ((promptConfig.prompt_variables || []).length > 0) { return }
+    if (getChatList().some(item => !item.isAnswer)) { return }
+    handleStartChat({})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inited, promptConfig, isNewConversation, isChatStarted])
+
   const handleConversationIdChange = (id: string) => {
     if (id === '-1') {
       createNewChat()
@@ -734,14 +743,14 @@ const Main: FC<IMainProps> = () => {
   if (!APP_ID || !APP_INFO || !promptConfig) { return <Loading type='app' /> }
 
   return (
-    <div className='bg-gray-100'>
+    <div style={{ background: '#f6f3ec' }}>
       <Header
         title={APP_INFO.title}
         isMobile={isMobile}
         onShowSideBar={showSidebar}
         onCreateNewChat={() => handleConversationIdChange('-1')}
       />
-      <div className="flex rounded-t-2xl bg-white overflow-x-hidden">
+      <div className="flex overflow-x-hidden" style={{ background: '#f6f3ec' }}>
         {/* sidebar */}
         {!isMobile && renderSidebar()}
         {isMobile && isShowSidebar && (
