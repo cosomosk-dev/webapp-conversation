@@ -24,10 +24,10 @@ import type { Annotation as AnnotationType } from '@/types/log'
 import { addFileInfos, sortAgentSorts } from '@/utils/tools'
 
 const SCORING_COUNT_KEY = 'cosmosk_scoring_count'
-// v2: 表示条件を「2回目以降・12点以上」に直したので、旧条件(3回目・点数無関係)で使った分は数え直す
+// v2: 表示条件を「2回目以降・点数条件つき」に直したので、旧条件(3回目・点数無関係)で使った分は数え直す
 const REVIEW_REQUESTED_KEY = 'cosmosk_review_requested_v2'
 const SCORING_TRIGGER_COUNT = 2 // 1回目の採点では出さない
-const REVIEW_MIN_SCORE = 12 // 20点満点中、この点数以上を取った回にだけ出す
+const REVIEW_MIN_SCORE = 15 // 20点満点中、この点数以上を取った回にだけ出す(12→15に変更、2026/10/14)
 
 // 採点結果の文章から点数(○/20)を読む。小数(14.5/20)も可。読めなければ -1
 const readScore = (text: string): number => {
@@ -420,7 +420,7 @@ const Main: FC<IMainProps> = () => {
   }
 
   // Google Playの評価ポップアップ(In-App Review)。アプリ版のみ・1インストール1回だけ依頼する
-  // 条件: 2回目以降の採点が正常に終わり、その回が12点以上のとき(12点未満なら次に12点以上を取った回へ持ち越し)
+  // 条件: 2回目以降の採点が正常に終わり、その回が15点以上のとき(15点未満なら次に15点以上を取った回へ持ち越し)
   const handleScoringReviewCheck = (userMessage: string, answerText: string) => {
     if (userMessage.trim() === '出題スタート') { return }
 
