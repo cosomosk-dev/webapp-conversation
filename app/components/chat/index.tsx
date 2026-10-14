@@ -189,14 +189,14 @@ const Chat: FC<IChatProps> = ({
         try {
           const n = (Number(localStorage.getItem(REVIEW_COUNT_KEY)) || 0) + 1
           localStorage.setItem(REVIEW_COUNT_KEY, String(n))
-          // 12点以上(20点満点)を取った採点の直後に表示。見た目・位置は従来のまま
+          // 15点以上(20点満点)を取った採点の直後に表示(12→15に変更、2026/10/14)。見た目・位置は従来のまま
           // 小数の点数(14.5/20など)も正しく読む
           const scoreRe = /(\d{1,2}(?:\.\d+)?)\s*[/／]\s*20/g
           const text = String(last?.content || '')
           let score = -1
           let m: RegExpExecArray | null
           while ((m = scoreRe.exec(text)) !== null) { score = Number(m[1]) }
-          if (n >= 1 && score >= 12 && score <= 20) {
+          if (n >= 1 && score >= 15 && score <= 20) {
             setShowReviewLink(true)
           }
         }
