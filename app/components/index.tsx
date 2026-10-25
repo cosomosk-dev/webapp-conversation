@@ -29,6 +29,8 @@ const REVIEW_REQUESTED_KEY = 'cosmosk_review_requested_v2'
 const SCORING_TRIGGER_COUNT = 2 // 1回目の採点では出さない
 const REVIEW_MIN_SCORE = 15 // 20点満点中、この点数以上を取った回にだけ出す(12→15に変更、2026/10/14)
 
+const NOTIFICATION_PROMPTED_KEY = 'cosmosk_notification_prompted'
+
 // 採点結果の文章から点数(○/20)を読む。小数(14.5/20)も可。読めなければ -1
 const readScore = (text: string): number => {
   const head = text.match(/採点結果[^\n]*?(\d{1,2}(?:\.\d+)?)\s*[/／]\s*20/)
@@ -419,6 +421,23 @@ const Main: FC<IMainProps> = () => {
     }
   }
 
+  const handleGradingComplete = (userMessage: string) => {
+    if (userMessage.trim() === '出題スタート') { return }
+
+    const w = window as any
+
+    // Firebase Analytics: grading_complete イベント送信（ネイティブブリッジ経由）
+    try { w.CosmosBilling?.logGradingComplete() } catch { }
+
+    // 初回の採点結果が出た直後にプッシュ通知の許可を求める（1回だけ）
+    try {
+      if (localStorage.getItem(NOTIFICATION_PROMPTED_KEY) !== '1') {
+        localStorage.setItem(NOTIFICATION_PROMPTED_KEY, '1')
+        w.CosmosBilling?.requestNotificationPermission()
+      }
+    } catch { }
+  }
+
   // Google Playの評価ポップアップ(In-App Review)。アプリ版のみ・1インストール1回だけ依頼する
   // 条件: 2回目以降の採点が正常に終わり、その回が15点以上のとき(15点未満なら次に15点以上を取った回へ持ち越し)
   const handleScoringReviewCheck = (userMessage: string, answerText: string) => {
@@ -575,6 +594,7 @@ const Main: FC<IMainProps> = () => {
         setRespondingFalse()
 
         if (!hasError && !answerIsEmpty) {
+          handleGradingComplete(message)
           handleScoringReviewCheck(message, responseItem.content || '')
         }
       },
