@@ -10,5 +10,6 @@
         <item name="colorOnSurface">@color/on_surface</item>
         <item name="android:statusBarColor">@color/primary</item>
         <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:fitsSystemWindows">true</item>
     </style>
 </resources>

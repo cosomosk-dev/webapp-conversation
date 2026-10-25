@@ -5,7 +5,9 @@ import android.webkit.JavascriptInterface
 class WebAppInterface(
     private val onSubscribeRequested: () -> Unit,
     private val onRestoreRequested: () -> Unit,
-    private val onReviewRequested: () -> Unit
+    private val onReviewRequested: () -> Unit,
+    private val onNotificationPermissionRequested: () -> Unit,
+    private val onGradingComplete: () -> Unit,
 ) {
     @JavascriptInterface
     fun subscribe() {
@@ -23,5 +25,15 @@ class WebAppInterface(
     @JavascriptInterface
     fun requestInAppReview() {
         onReviewRequested()
+    }
+
+    @JavascriptInterface
+    fun requestNotificationPermission() {
+        onNotificationPermissionRequested()
+    }
+
+    @JavascriptInterface
+    fun logGradingComplete() {
+        onGradingComplete()
     }
 }

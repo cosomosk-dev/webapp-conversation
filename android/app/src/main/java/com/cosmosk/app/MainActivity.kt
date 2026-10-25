@@ -1,9 +1,14 @@
 package com.cosmosk.app
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -12,15 +17,25 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.google.android.play.core.review.ReviewManagerFactory
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.cosmosk.app.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var billingManager: BillingManager
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
     private var isPageLoaded = false
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        Log.d(TAG, "Notification permission ${if (granted) "granted" else "denied"}")
+    }
 
     companion object {
         private const val TAG = "MainActivity"
@@ -33,12 +48,42 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
+        createNotificationChannel()
+
         initBilling()
         initWebView()
         initSwipeRefresh()
         initRetryButton()
 
         loadWebApp()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CosmosMessagingService.CHANNEL_ID,
+                CosmosMessagingService.CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "コスモスKからのお知らせ"
+            }
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            == PackageManager.PERMISSION_GRANTED
+        ) return
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    private fun logGradingCompleteEvent() {
+        firebaseAnalytics.logEvent("grading_complete", null)
+        Log.d(TAG, "Firebase Analytics: grading_complete event logged")
     }
 
     private fun initBilling() {
@@ -70,7 +115,9 @@ class MainActivity : AppCompatActivity() {
             val bridge = WebAppInterface(
                 onSubscribeRequested = { runOnUiThread { billingManager.launchPurchaseFlow() } },
                 onRestoreRequested = { runOnUiThread { billingManager.queryExistingPurchases() } },
-                onReviewRequested = { runOnUiThread { launchInAppReview() } }
+                onReviewRequested = { runOnUiThread { launchInAppReview() } },
+                onNotificationPermissionRequested = { runOnUiThread { requestNotificationPermissionIfNeeded() } },
+                onGradingComplete = { runOnUiThread { logGradingCompleteEvent() } },
             )
             addJavascriptInterface(bridge, JS_BRIDGE_NAME)
 
@@ -80,9 +127,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initSwipeRefresh() {
-        binding.swipeRefresh.setOnRefreshListener {
-            binding.webView.reload()
-        }
+        binding.swipeRefresh.isEnabled = false
     }
 
     private fun initRetryButton() {
@@ -116,14 +161,12 @@ class MainActivity : AppCompatActivity() {
     private fun showContent() {
         binding.loadingOverlay.visibility = View.GONE
         binding.errorOverlay.visibility = View.GONE
-        binding.swipeRefresh.isRefreshing = false
     }
 
     private fun showError(message: String) {
         binding.loadingOverlay.visibility = View.GONE
         binding.errorOverlay.visibility = View.VISIBLE
         binding.errorText.text = message
-        binding.swipeRefresh.isRefreshing = false
     }
 
     private fun isNetworkAvailable(): Boolean {
