@@ -6,6 +6,7 @@ import s from '../style.module.css'
 
 import StreamdownMarkdown from '@/app/components/base/streamdown-markdown'
 import ImageGallery from '@/app/components/base/image-gallery'
+import { examAnswerOf, examProblemOf } from '@/app/components/cosmos/exam-card'
 
 type IQuestionProps = Pick<IChatItem, 'id' | 'content' | 'useCurrentUserAvatar'> & {
   imgSrcs?: string[]
@@ -24,11 +25,14 @@ const Question: FC<IQuestionProps> = ({ id, content, useCurrentUserAvatar, imgSr
     )
   }
   if (!imgSrcs || imgSrcs.length === 0) {
+    // 本試験モード(本試験 問44 採点：…)は問番号つきで、答案本体だけを見せる
+    const examProblem = examProblemOf(content)
+    const body = examProblem ? examAnswerOf(content) : (content || '')
     return (
       <div className='flex justify-end' key={id}>
         <div className='max-w-[88%] rounded-2xl px-4 py-3 text-white' style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)' }}>
-          <div className='text-[10.5px] font-bold mb-1' style={{ color: '#f1d79a' }}>あなたの答案({(content || '').length}字)</div>
-          <div className='text-[14px] leading-relaxed whitespace-pre-wrap'>{content}</div>
+          <div className='text-[10.5px] font-bold mb-1' style={{ color: '#f1d79a' }}>{examProblem ? `📝 本試験 ${examProblem} あなたの答案` : 'あなたの答案'}({body.length}字)</div>
+          <div className='text-[14px] leading-relaxed whitespace-pre-wrap'>{body}</div>
         </div>
       </div>
     )
