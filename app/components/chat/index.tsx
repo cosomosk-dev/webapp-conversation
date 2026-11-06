@@ -15,6 +15,23 @@ import Toast from '@/app/components/base/toast'
 import { useImageFiles } from '@/app/components/base/image-uploader/hooks'
 import type { FileEntity, FileUpload } from '@/app/components/base/file-uploader-in-attachment/types'
 import { getProcessedFiles } from '@/app/components/base/file-uploader-in-attachment/utils'
+import { ExamResultCard, XIcon, buildExamMessage, examProblemOf, lastScoreOf, tweetUrl } from '@/app/components/cosmos/exam-card'
+import type { ExamScores } from '@/app/components/cosmos/exam-card'
+
+// ---- 本試験モード(問44〜46の答案をAIで予想採点) ----
+// 入口は visibleFrom(試験終了の16:00)以降に出す。URLに ?exam=1 を付けると試験前でも出る(動作確認用)。
+// 送る文面は「本試験 問44 採点：<答案>」(全角コロン)。Dify側の分岐はこの先頭文字列で判定する。
+// 本試験の採点は無料枠(cosmosk_free_used)を消費しない・有料プランでなくても使える。
+export const EXAM_MODE = {
+  visibleFrom: '2026-11-08T16:00:00+09:00',
+  forceParam: 'exam',
+  problems: ['問44', '問45', '問46'],
+  storeUrl: 'https://play.google.com/store/apps/details?id=com.cosmosk.app',
+  utm: 'utm_source%3Dshare%26utm_medium%3Dx%26utm_campaign%3Dhonshiken2026',
+} as const
+export const EXAM_SCORES_KEY = 'cosmosk_exam_scores'
+export const EXAM_MC_KEY = 'cosmosk_exam_mc'
+const PRACTICE_UTM = 'utm_source%3Dshare%26utm_medium%3Dx%26utm_campaign%3Dpractice'
 
 export interface IChatProps {
   chatList: ChatItem[]
@@ -205,6 +222,75 @@ const Chat: FC<IChatProps> = ({
     }
   }, [isResponding])
 
+  // ---- 本試験モードの状態 ----
+  const [examVisible, setExamVisible] = React.useState(false)
+  const [examOpen, setExamOpen] = React.useState(false)
+  const [examProblem, setExamProblem] = React.useState<string>(EXAM_MODE.problems[0])
+  const [examAnswer, setExamAnswer] = React.useState('')
+  const [examScores, setExamScores] = React.useState<ExamScores>({})
+  const [examMc, setExamMc] = React.useState('')
+  const examPendingRef = React.useRef<string | null>(null) // 採点待ちの問番号(返事が来たら点数を読む)
+  const examInputRef = useRef<any>(null)
+  useEffect(() => {
+    try {
+      const forced = new URLSearchParams(window.location.search).get(EXAM_MODE.forceParam) === '1'
+      setExamVisible(forced || Date.now() >= new Date(EXAM_MODE.visibleFrom).getTime())
+    }
+    catch { }
+    try { setExamScores(JSON.parse(localStorage.getItem(EXAM_SCORES_KEY) || '{}') || {}) }
+    catch { }
+    try { setExamMc(localStorage.getItem(EXAM_MC_KEY) || '') }
+    catch { }
+  }, [])
+  const saveExamMc = (v: string) => {
+    setExamMc(v)
+    try { localStorage.setItem(EXAM_MC_KEY, v) }
+    catch { }
+  }
+  const openExam = (problem?: string) => {
+    if (problem) { setExamProblem(problem) }
+    setExamAnswer('')
+    flushSync(() => setExamOpen(true))
+    try { examInputRef.current?.focus() }
+    catch { }
+  }
+  const closeExam = () => {
+    setExamOpen(false)
+    blurActive()
+  }
+  const sendExam = () => {
+    if (isResponding) { return }
+    const ans = examAnswer.replace(/\s+/g, ' ').trim()
+    if (!ans) {
+      logError(`${examProblem}の答案を入力してください`)
+      return
+    }
+    if (checkCanSend && !checkCanSend()) { return }
+    examPendingRef.current = examProblem
+    const msg = buildExamMessage(examProblem, ans)
+    setQuery(msg)
+    queryRef.current = msg
+    handleSend()
+    setExamOpen(false)
+    blurActive()
+  }
+  // 本試験の採点が返ってきたら「◯/20」を読んで問番号ごとに保存する
+  useEffect(() => {
+    if (isResponding || !examPendingRef.current) { return }
+    const problem = examPendingRef.current
+    examPendingRef.current = null
+    const last = chatList[chatList.length - 1]
+    if (!last || !last.isAnswer || !last.content) { return }
+    const sc = lastScoreOf(last.content)
+    if (sc < 0 || sc > 20) { return }
+    setExamScores((prev) => {
+      const next = { ...prev, [problem]: sc }
+      try { localStorage.setItem(EXAM_SCORES_KEY, JSON.stringify(next)) }
+      catch { }
+      return next
+    })
+  }, [isResponding])
+
   const handleSend = () => {
     if (isResponding) { return }
     if (!valid() || (checkCanSend && !checkCanSend())) { return }
@@ -217,7 +303,9 @@ const Chat: FC<IChatProps> = ({
     const trimmedQuery = queryRef.current.trim()
     if (!trimmedQuery) { return }
     // 答案の送信だけ無料枠を消費する(「出題スタート」はノーカウント・累計制)
-    const isAnswerSend = trimmedQuery !== '出題スタート'
+    // 本試験モード(本試験 問44 採点：…)は無料枠を消費しない・返金ロジックにも乗せない
+    const isExamSend = !!examProblemOf(trimmedQuery)
+    const isAnswerSend = trimmedQuery !== '出題スタート' && !isExamSend
     if (isAnswerSend && !premium) {
       const used = readUsed()
       if (used >= FREE_LIMIT) {
@@ -286,6 +374,16 @@ const Chat: FC<IChatProps> = ({
   const lastItem = chatList[chatList.length - 1]
   const lastUserItem = [...chatList].reverse().find(item => !item.isAnswer)
   const lastIsStart = !!lastUserItem && lastUserItem.content.trim() === '出題スタート'
+  const lastIsExam = !!lastUserItem && !!examProblemOf(lastUserItem.content)
+  // 本試験の採点結果カードは、いちばん新しい本試験の返事の下に1つだけ出す
+  const lastExamAnswerId = (() => {
+    for (let i = chatList.length - 1; i >= 1; i--) {
+      const it = chatList[i]
+      const prev = chatList[i - 1]
+      if (it.isAnswer && it.content && prev && !prev.isAnswer && examProblemOf(prev.content)) { return it.id }
+    }
+    return null
+  })()
   const lastQuestionItem = [...chatList].reverse().find(item => item.isAnswer && isQuestion(item.content))
   const phase: 'home' | 'asking' | 'answering' | 'grading' | 'graded' = !hasUserMessage
     ? 'home'
@@ -293,7 +391,12 @@ const Chat: FC<IChatProps> = ({
       ? (lastIsStart ? 'asking' : 'grading')
       : (lastIsStart ? 'answering' : 'graded')
   const questionReady = phase === 'answering' && !!lastItem?.isAnswer && !!lastItem.content
-  const canSaveLast = phase === 'graded' && !!lastItem?.isAnswer && !!lastItem.content
+  const canSaveLast = phase === 'graded' && !lastIsExam && !!lastItem?.isAnswer && !!lastItem.content
+  // 練習の採点結果(最後)から読んだ点数。「結果をXに投稿」はこれが読めたときだけ出す
+  const lastPracticeScore = (phase === 'graded' && !lastIsExam && lastItem?.isAnswer && lastItem.content) ? lastScoreOf(lastItem.content) : -1
+  const practiceShareText = lastPracticeScore >= 0
+    ? `コスモスKで記述式を練習中 今日の採点 ${Number.isInteger(lastPracticeScore) ? lastPracticeScore : lastPracticeScore.toFixed(1)}/20 #行政書士試験 ${EXAM_MODE.storeUrl}&referrer=${PRACTICE_UTM}`
+    : ''
 
   const blurActive = () => {
     try { (document.activeElement as HTMLElement | null)?.blur?.() }
@@ -420,11 +523,23 @@ const Chat: FC<IChatProps> = ({
 
   return (
     <div className={cn(!feedbackDisabled && 'px-3.5', 'min-h-full -mb-[90px]')}>
-      {hasUserMessage && <a href="/favorites" className="fixed z-20 top-[54px] right-3 text-xs font-bold rounded-full px-3 py-1 shadow-sm" style={{ background: '#fff', color: NAVY, border: '1px solid #e7e0d0' }}>★ 保存した問題</a>}
+      {hasUserMessage && (
+        <div className="fixed z-20 top-[54px] left-1/2 transform -translate-x-1/2 pc:ml-[122px] tablet:ml-[96px] mobile:ml-0 pc:w-[794px] tablet:w-[794px] max-w-full mobile:w-full px-3 flex items-center justify-between gap-2 pointer-events-none">
+          {examVisible && !examOpen
+            ? <button type="button" onClick={() => openExam()} className="pointer-events-auto min-w-0 truncate text-[11.5px] font-bold rounded-full px-3 py-1 shadow-sm" style={{ background: NAVY, color: GOLD_LIGHT, border: `1px solid ${GOLD}` }}>📝 本試験の記述を採点(問44〜46)</button>
+            : <span />}
+          <a href="/favorites" className="pointer-events-auto shrink-0 text-xs font-bold rounded-full px-3 py-1 shadow-sm" style={{ background: '#fff', color: NAVY, border: '1px solid #e7e0d0' }}>★ 保存した問題</a>
+        </div>
+      )}
       {!hasUserMessage && (
         <div className="-mx-3.5 -mt-[68px] pb-10">
           <div className="px-5 pt-4 pb-16 rounded-b-[28px]" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: '#f4e7c8' }}>
-            <div className="text-[12px] opacity-80">行政書士試験 記述式トレーニング</div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[12px] opacity-80">行政書士試験 記述式トレーニング</div>
+              {examVisible && (
+                <button type="button" onClick={() => openExam()} className="shrink-0 text-[11px] font-bold rounded-full px-2.5 py-1" style={{ background: 'rgba(241,215,154,.14)', border: `1px solid ${GOLD}`, color: GOLD_LIGHT }}>📝 本試験の記述を採点(問44〜46)</button>
+              )}
+            </div>
             <h1 className="mt-2 text-[24px] leading-[1.45] font-bold" style={{ fontFamily: SERIF }}>40字で書いて、<br />その場で20点採点。</h1>
             <p className="text-[12.5px] opacity-80 mt-1.5">行政書士が監修した記述式92問 ・ 部分点つき</p>
             {daysToExam > 0 && (
@@ -452,6 +567,22 @@ const Chat: FC<IChatProps> = ({
               </span>
               <span className="w-12 h-12 rounded-full flex items-center justify-center text-lg" style={{ background: GOLD_LIGHT, color: NAVY }}>▶</span>
             </button>
+            {examVisible && (
+              <button
+                type="button"
+                onClick={() => openExam()}
+                disabled={!!isResponding}
+                className={`mt-3 w-full rounded-[20px] px-5 py-4 flex items-center justify-between text-left bg-white ${isResponding ? 'opacity-50' : ''}`}
+                style={{ border: `1.5px solid ${GOLD}`, boxShadow: '0 10px 30px rgba(15,29,56,.10)' }}
+              >
+                <span className="min-w-0">
+                  <span className="block text-[17px] font-bold" style={{ fontFamily: SERIF, color: NAVY }}>📝 本試験の記述を採点(問44〜46)</span>
+                  <span className="block text-[11.5px] mt-0.5 text-gray-500">答案を入力 → AIが20点満点で予想採点 ・ 無料・回数制限なし</span>
+                  <span className="block text-[11px] mt-1 font-bold" style={{ color: GOLD }}>結果はXに投稿できます</span>
+                </span>
+                <span className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-base ml-2" style={{ background: NAVY, color: GOLD_LIGHT }}>▶</span>
+              </button>
+            )}
             <div className="grid grid-cols-2 gap-2.5 mt-3">
               <a href="/favorites" className="bg-white rounded-2xl px-3 py-3 text-[13px] flex items-center gap-2" style={{ border: '1px solid #e7e0d0', color: '#1b2236' }}><span style={{ color: GOLD }}>★</span>保存した問題</a>
               <button onClick={() => setShowHowTo(v => !v)} className="bg-white rounded-2xl px-3 py-3 text-[13px] flex items-center gap-2 text-left" style={{ border: '1px solid #e7e0d0', color: '#1b2236' }}><span>📖</span>使い方</button>
@@ -528,10 +659,11 @@ const Chat: FC<IChatProps> = ({
             const isLast = item.id === chatList[chatList.length - 1].id
             const prevUser = chatList[idx - 1]
             const isDone = !item.isOpeningStatement && !(isResponding && isLast) && !!item.content && !!prevUser && !prevUser.isAnswer
-            const canSave = isDone && prevUser.content.trim() !== '出題スタート'
+            const isExamAnswer = isDone && !!examProblemOf(prevUser.content)
+            const canSave = isDone && !isExamAnswer && prevUser.content.trim() !== '出題スタート'
             const saveFav = () => saveFavAt(idx)
             // 最後の採点結果のボタンは画面下の固定バーに出す(問題の下の「次の問題」は残す)
-            const showInlineActions = isDone && !(isLast && phase === 'graded')
+            const showInlineActions = isDone && !isExamAnswer && !(isLast && phase === 'graded')
             return (
               <div key={item.id}>
                 <Answer
@@ -541,6 +673,26 @@ const Chat: FC<IChatProps> = ({
                   isResponding={isResponding && isLast}
                   suggestionClick={suggestionClick}
                 />
+                {isExamAnswer && item.id === lastExamAnswerId && (
+                  <ExamResultCard
+                    problems={EXAM_MODE.problems}
+                    scores={examScores}
+                    mcInput={examMc}
+                    onMcChange={saveExamMc}
+                    storeUrl={EXAM_MODE.storeUrl}
+                    utm={EXAM_MODE.utm}
+                    onCopied={ok => notify({ type: ok ? 'success' : 'error', message: ok ? '文面をコピーしました' : 'コピーできませんでした', duration: 2000 })}
+                  />
+                )}
+                {isExamAnswer && !(isResponding && isLast) && (
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {EXAM_MODE.problems.map(p => (
+                      <button key={p} type="button" onClick={() => openExam(p)} disabled={!!isResponding} className="text-[13px] font-bold rounded-xl px-2 py-3 bg-white" style={{ color: NAVY, border: `1px solid ${typeof examScores[p] === 'number' ? '#e7e0d0' : GOLD}` }}>
+                        {typeof examScores[p] === 'number' ? `${p} 再採点` : `${p} を採点`}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {showInlineActions && (
                   <div className="mt-3 flex gap-2">
                     {canSave && <button onClick={saveFav} className="shrink-0 text-[13px] font-bold rounded-xl px-4 py-3 bg-white" style={{ color: NAVY, border: '1px solid #e7e0d0' }}>★ 保存</button>}
@@ -585,9 +737,26 @@ const Chat: FC<IChatProps> = ({
         const reviewLink = showReviewLink
           ? <a href="https://play.google.com/store/apps/details?id=com.cosmosk.app" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">🌸 Google Playで評価する</a>
           : null
-        const infoLine = (reviewLink || !premium) && (
-          <div className="flex items-center justify-between text-[11px] mb-1 px-1">{freeLeft}{reviewLink}</div>
+        // 練習の採点結果(◯/20が読めたとき)だけ、控えめに「結果をXに投稿」を出す
+        const practiceShare = practiceShareText
+          ? <a href={tweetUrl(practiceShareText)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 underline"><XIcon size={10} />結果をXに投稿</a>
+          : null
+        const rightLinks = (reviewLink || practiceShare)
+          ? <span className="flex items-center gap-2">{practiceShare}{reviewLink}</span>
+          : null
+        const infoLine = (rightLinks || !premium) && (
+          <div className="flex items-center justify-between text-[11px] mb-1 px-1">{freeLeft}{rightLinks}</div>
         )
+        if (phase === 'graded' && lastIsExam) {
+          return (
+            <div className={wrapClass} style={wrapStyle}>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => suggestionClick('出題スタート')} className="shrink-0 text-[13px] font-bold rounded-xl px-3.5 py-3 bg-white" style={whiteBtn}>▶ 練習問題</button>
+                <button type="button" onClick={() => openExam()} className="flex-1 text-[14px] font-bold rounded-xl px-3 py-3" style={navyBtn}>📝 別の問を採点(問44〜46)</button>
+              </div>
+            </div>
+          )
+        }
         if (phase === 'graded') {
           return (
             <div className={wrapClass} style={wrapStyle}>
@@ -610,6 +779,72 @@ const Chat: FC<IChatProps> = ({
           </div>
         )
       })()}
+      {examOpen && (
+        <div className="fixed left-0 right-0 z-30 flex flex-col" style={{ top: viewBox ? `${viewBox.top}px` : 0, height: viewBox ? `${viewBox.height}px` : '100%', background: CREAM, overscrollBehavior: 'contain' }}>
+          <div className="shrink-0" style={{ background: '#0f1d38' }}>
+            <div className="flex items-center justify-between h-11 px-2 w-full max-w-[794px] mx-auto">
+              <button type="button" onClick={closeExam} className="text-[13px] font-bold px-2 py-2" style={{ color: GOLD_LIGHT }}>✕ 閉じる</button>
+              <span className="text-[14px] font-bold" style={{ color: '#f4e7c8', fontFamily: SERIF }}>📝 本試験の記述を採点</span>
+              <span className="min-w-[76px] pr-2 text-right text-[11px]" style={{ color: 'rgba(244,231,200,.8)' }}>無料・回数制限なし</span>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto py-4" style={{ overscrollBehavior: 'contain' }}>
+            <div className="px-4 w-full max-w-[794px] mx-auto">
+              <div className="text-[12px] text-gray-500 mb-2">採点する問を選んでください</div>
+              <div className="grid grid-cols-3 gap-2">
+                {EXAM_MODE.problems.map((p) => {
+                  const active = p === examProblem
+                  const sc = examScores[p]
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setExamProblem(p)}
+                      className="rounded-xl py-3 text-center"
+                      style={active
+                        ? { background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', border: `1.5px solid ${GOLD}`, color: GOLD_LIGHT }
+                        : { background: '#fff', border: '1px solid #e7e0d0', color: NAVY }}
+                    >
+                      <span className="block text-[16px] font-bold" style={{ fontFamily: SERIF }}>{p}</span>
+                      <span className="block text-[10.5px] mt-0.5" style={{ opacity: 0.8 }}>{typeof sc === 'number' ? `採点済 ${Number.isInteger(sc) ? sc : sc.toFixed(1)}/20` : '未採点'}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="mt-5 rounded-2xl bg-white p-4" style={{ border: '1px solid #e7e0d0' }}>
+                <div className="text-[15px] font-bold" style={{ fontFamily: SERIF, color: NAVY }}>{examProblem}の答案を入力</div>
+                <div className="text-[12px] text-gray-500 mt-1 leading-relaxed">本試験で書いた答案を、そのまま40字程度で入力してください。問題文は表示しません。</div>
+                <ol className="mt-3 space-y-1.5 text-[12px] text-gray-600">
+                  {['答案を入力して「AI採点する」', '採点結果に「採点結果 ◯/20」が出ます', '問44〜46をそれぞれ採点すると記述の予想合計が出ます', '択一の自己採点を足せば合格ライン(180点)までの差も出ます'].map((t, i) => (
+                    <li key={i} className="flex gap-2"><span className="shrink-0 w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center" style={{ background: NAVY, color: GOLD_LIGHT }}>{i + 1}</span><span>{t}</span></li>
+                  ))}
+                </ol>
+              </div>
+              <div className="mt-3 text-[10.5px] leading-[1.7] text-gray-400">注記: 速報版の予想採点です(各予備校の模範解答ベース)。確定版は11/22<br />※AIによる採点のため、不正確な場合があります。無料枠は消費しません。</div>
+            </div>
+          </div>
+          <div className="shrink-0 pt-2 bg-white" style={{ borderTop: '1px solid #e7e0d0', paddingBottom: keyboardOffset > 0 ? '8px' : 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}>
+            <div className="flex items-end gap-2 px-3.5 w-full max-w-[794px] mx-auto">
+              <div className="flex-1 min-w-0 rounded-2xl border-[1.5px] px-2 py-1" style={{ borderColor: GOLD }}>
+                <Textarea
+                  ref={examInputRef}
+                  className="block w-full px-1 py-1 leading-6 max-h-none text-base text-gray-700 outline-none appearance-none resize-none bg-transparent"
+                  value={examAnswer}
+                  onChange={(e: any) => setExamAnswer(e.target.value)}
+                  onKeyDown={(e: any) => { isUseInputMethod.current = e.nativeEvent.isComposing; if (e.code === 'Enter' && !e.shiftKey) { e.preventDefault() } }}
+                  onKeyUp={(e: any) => { if (e.code === 'Enter' && !e.shiftKey && !isUseInputMethod.current && !isResponding) { sendExam() } }}
+                  placeholder={`${examProblem}の答案を40字以内で入力`}
+                  autoSize={{ minRows: 3, maxRows: 5 }}
+                />
+              </div>
+              <div className="shrink-0 flex flex-col items-center gap-1.5">
+                <span className={`h-5 leading-5 px-2 rounded-md text-[12px] ${examAnswer.length > 40 ? 'bg-red-50 text-red-600 font-bold' : 'bg-gray-50 text-gray-500'}`}>{examAnswer.length > 40 ? `${examAnswer.length}/40 +${examAnswer.length - 40}` : `${examAnswer.length}/40`}</span>
+                <button type="button" onClick={sendExam} disabled={!!isResponding} className="rounded-xl px-3.5 py-3 text-[14px] font-bold whitespace-nowrap" style={{ background: examAnswer.trim() && !isResponding ? NAVY : '#d9d4c7', color: examAnswer.trim() && !isResponding ? GOLD_LIGHT : '#fff' }}>AI採点する</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {sheetOpen && (
         <div className="fixed left-0 right-0 z-30 flex flex-col" style={{ top: viewBox ? `${viewBox.top}px` : 0, height: viewBox ? `${viewBox.height}px` : '100%', background: CREAM, overscrollBehavior: 'contain' }}>
           <div className="shrink-0" style={{ background: '#0f1d38' }}>
