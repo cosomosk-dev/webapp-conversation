@@ -9,6 +9,8 @@ import { CREAM, GOLD, GOLD_LIGHT, NAVY, SERIF } from '@/app/components/cosmos/ca
 export type ExamScores = Record<string, number>
 
 export const PASS_LINE = 180
+/** インスタ用の文面に入れる監修者アカウント(メンションにするとタップでプロフィールへ飛べる) */
+export const INSTAGRAM_HANDLE = '@taka.gyosei.music0319'
 export const WRITTEN_MAX_PER_PROBLEM = 20
 export const MC_MAX = 240
 
@@ -44,13 +46,22 @@ export const buildExamShareText = (opts: {
   mc: number | null
   storeUrl: string
   utm: string
-  channel?: 'x' | 'line'
+  channel?: 'x' | 'line' | 'insta'
 }) => {
   const { problems, scores, mc, storeUrl, utm, channel = 'x' } = opts
   const written = writtenTotal(problems, scores)
   const detail = problems.map(p => `${p} ${typeof scores[p] === 'number' ? fmt(scores[p]) : '—'}`).join('／')
-  // LINEはハッシュタグが効かないので、1行目を普通の見出しにする
-  const lines = [channel === 'line' ? '【行政書士試験 自己採点】' : '#行政書士試験 自己採点 #コスモスK']
+  // インスタはURLが押せない(ストーリーズ・フィードの文中)ので、URLなし・ハッシュタグなしの短文。
+  // 「Google Playで検索」と、監修者アカウントのメンション(タップでプロフィールへ)で案内する
+  if (channel === 'insta') {
+    const ig = ['行政書士試験 自己採点📝', `記述AI予想 ${fmt(written)}点（${detail}）`]
+    if (mc !== null)
+      ig.push(`択一${mc}点＋記述${fmt(written)}点＝合計${fmt(mc + written)}点`)
+    ig.push('採点はアプリ「コスモスK」(無料)', 'Google Playで「コスモスK」と検索', `リンクは ${INSTAGRAM_HANDLE} のプロフィールに`)
+    return ig.join('\n')
+  }
+  // 1行目は点数と離した普通の見出し。ハッシュタグはXだけ、最後の行にまとめて置く(点数の行には混ぜない)
+  const lines = ['行政書士試験 自己採点📝']
   if (mc !== null) {
     lines.push(`択一 ${mc}点 ／ 記述AI予想 ${fmt(written)}点(${detail})`)
     lines.push(`合計 ${fmt(mc + written)}点(合格ライン${PASS_LINE})`)
@@ -59,6 +70,8 @@ export const buildExamShareText = (opts: {
     lines.push(`記述AI予想 ${fmt(written)}点(${detail})`)
   }
   lines.push(`記述の採点はコスモスK(無料) ${storeUrl}&referrer=${utm}`)
+  if (channel === 'x')
+    lines.push('#行政書士試験 #コスモスK')
   return lines.join('\n')
 }
 
@@ -124,6 +137,7 @@ export const ExamResultCard: FC<{
   const total = mc !== null ? mc + written : null
   const shareText = buildExamShareText({ problems, scores, mc, storeUrl, utm })
   const lineText = buildExamShareText({ problems, scores, mc, storeUrl, utm: toLineUtm(utm), channel: 'line' })
+  const instaText = buildExamShareText({ problems, scores, mc, storeUrl, utm, channel: 'insta' })
   const unscored = problems.filter(p => typeof scores[p] !== 'number')
 
   return (
@@ -211,11 +225,11 @@ export const ExamResultCard: FC<{
       </div>
       <button
         type="button"
-        onClick={async () => { const ok = await copyText(shareText); onCopied?.(ok) }}
+        onClick={async () => { const ok = await copyText(instaText); onCopied?.(ok) }}
         className="w-full mt-2 rounded-xl px-3.5 py-2.5 text-[13px] font-bold bg-white"
         style={{ color: NAVY, border: '1px solid #e7e0d0' }}
       >
-        文面をコピー(インスタ等に)
+        インスタ用の短い文をコピー
       </button>
       <div className="mt-2 text-[10.5px] leading-[1.7] text-gray-400">※AIによる予想採点のため、実際の得点とは異なる場合があります。注記: 速報版の予想採点です(各予備校の模範解答ベース)。確定版は11/22</div>
     </div>

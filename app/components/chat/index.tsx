@@ -396,7 +396,7 @@ const Chat: FC<IChatProps> = ({
   // 練習の採点結果(最後)から読んだ点数。「結果をXに投稿」はこれが読めたときだけ出す
   const lastPracticeScore = (phase === 'graded' && !lastIsExam && lastItem?.isAnswer && lastItem.content) ? lastScoreOf(lastItem.content) : -1
   const practiceShareText = lastPracticeScore >= 0
-    ? `コスモスKで記述式を練習中 今日の採点 ${Number.isInteger(lastPracticeScore) ? lastPracticeScore : lastPracticeScore.toFixed(1)}/20 #行政書士試験 ${EXAM_MODE.storeUrl}&referrer=${PRACTICE_UTM}`
+    ? `コスモスKで記述式を練習中 今日の採点 ${Number.isInteger(lastPracticeScore) ? lastPracticeScore : lastPracticeScore.toFixed(1)}/20\n${EXAM_MODE.storeUrl}&referrer=${PRACTICE_UTM}\n#行政書士試験 #コスモスK`
     : ''
   const practiceLineText = lastPracticeScore >= 0
     ? `行政書士試験の記述式、コスモスKで練習中。今日の採点 ${Number.isInteger(lastPracticeScore) ? lastPracticeScore : lastPracticeScore.toFixed(1)}/20\n${EXAM_MODE.storeUrl}&referrer=${PRACTICE_UTM_LINE}`
@@ -685,7 +685,7 @@ const Chat: FC<IChatProps> = ({
                     onMcChange={saveExamMc}
                     storeUrl={EXAM_MODE.storeUrl}
                     utm={EXAM_MODE.utm}
-                    onCopied={ok => notify({ type: ok ? 'success' : 'error', message: ok ? '文面をコピーしました' : 'コピーできませんでした', duration: 2000 })}
+                    onCopied={ok => notify({ type: ok ? 'success' : 'error', message: ok ? 'コピーしました。インスタに貼り付けてね' : 'コピーできませんでした', duration: 2000 })}
                   />
                 )}
                 {isExamAnswer && !(isResponding && isLast) && (
