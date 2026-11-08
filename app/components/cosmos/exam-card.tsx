@@ -44,11 +44,13 @@ export const buildExamShareText = (opts: {
   mc: number | null
   storeUrl: string
   utm: string
+  channel?: 'x' | 'line'
 }) => {
-  const { problems, scores, mc, storeUrl, utm } = opts
+  const { problems, scores, mc, storeUrl, utm, channel = 'x' } = opts
   const written = writtenTotal(problems, scores)
   const detail = problems.map(p => `${p} ${typeof scores[p] === 'number' ? fmt(scores[p]) : '—'}`).join('／')
-  const lines = ['#行政書士試験 自己採点 #コスモスK']
+  // LINEはハッシュタグが効かないので、1行目を普通の見出しにする
+  const lines = [channel === 'line' ? '【行政書士試験 自己採点】' : '#行政書士試験 自己採点 #コスモスK']
   if (mc !== null) {
     lines.push(`択一 ${mc}点 ／ 記述AI予想 ${fmt(written)}点(${detail})`)
     lines.push(`合計 ${fmt(mc + written)}点(合格ライン${PASS_LINE})`)
@@ -61,6 +63,10 @@ export const buildExamShareText = (opts: {
 }
 
 export const tweetUrl = (text: string) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
+/** LINEの「送る相手を選ぶ」画面を開くURL(スマホではLINEアプリが開く) */
+export const lineUrl = (text: string) => `https://line.me/R/share?text=${encodeURIComponent(text)}`
+/** 流入元の計測: X用のutm(utm_medium=x)をLINE用(utm_medium=line)に置き換える */
+export const toLineUtm = (utm: string) => utm.replace('utm_medium%3Dx', 'utm_medium%3Dline')
 
 /** クリップボードにコピー(古い端末向けのフォールバックつき) */
 export const copyText = async (text: string): Promise<boolean> => {
@@ -96,6 +102,12 @@ export const XIcon: FC<{ size?: number }> = ({ size = 14 }) => (
   </svg>
 )
 
+export const LineIcon: FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 2.5C6.2 2.5 1.5 6.3 1.5 11c0 4.2 3.7 7.7 8.8 8.4.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1 .9.6 1.1-.5 6-3.5 8.2-6.1 1.5-1.6 2.3-3.3 2.3-5.3C22.5 6.3 17.8 2.5 12 2.5z" />
+  </svg>
+)
+
 export const ExamResultCard: FC<{
   problems: readonly string[]
   scores: ExamScores
@@ -111,6 +123,7 @@ export const ExamResultCard: FC<{
   const mc = (mcNum !== null && Number.isFinite(mcNum) && mcNum >= 0 && mcNum <= MC_MAX) ? Math.floor(mcNum) : null
   const total = mc !== null ? mc + written : null
   const shareText = buildExamShareText({ problems, scores, mc, storeUrl, utm })
+  const lineText = buildExamShareText({ problems, scores, mc, storeUrl, utm: toLineUtm(utm), channel: 'line' })
   const unscored = problems.filter(p => typeof scores[p] !== 'number')
 
   return (
@@ -186,15 +199,24 @@ export const ExamResultCard: FC<{
         >
           <XIcon size={15} /> Xに投稿
         </a>
-        <button
-          type="button"
-          onClick={async () => { const ok = await copyText(shareText); onCopied?.(ok) }}
-          className="shrink-0 rounded-xl px-3.5 py-3 text-[13px] font-bold bg-white"
-          style={{ color: NAVY, border: '1px solid #e7e0d0' }}
+        <a
+          href={lineUrl(lineText)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-[14px] font-bold text-white"
+          style={{ background: '#06C755' }}
         >
-          文面をコピー
-        </button>
+          <LineIcon size={16} /> LINEで送る
+        </a>
       </div>
+      <button
+        type="button"
+        onClick={async () => { const ok = await copyText(shareText); onCopied?.(ok) }}
+        className="w-full mt-2 rounded-xl px-3.5 py-2.5 text-[13px] font-bold bg-white"
+        style={{ color: NAVY, border: '1px solid #e7e0d0' }}
+      >
+        文面をコピー(インスタ等に)
+      </button>
       <div className="mt-2 text-[10.5px] leading-[1.7] text-gray-400">※AIによる予想採点のため、実際の得点とは異なる場合があります。注記: 速報版の予想採点です(各予備校の模範解答ベース)。確定版は11/22</div>
     </div>
   )
