@@ -98,9 +98,9 @@ export const GradeCard: FC<{ grade: Grade }> = ({ grade }) => {
           <div className="text-[18px] font-bold" style={{ fontFamily: SERIF, color: NAVY }}>{v1}</div>
           <div className="text-[12px] text-gray-500 mt-1 leading-relaxed">{v2}</div>
           <div className="flex gap-1.5 mt-2 text-[11px] font-bold">
-            <span className="px-2 py-0.5 rounded-full" style={{ background: '#e8f3ed', color: '#2f7d5b' }}>✓ {okN}</span>
-            <span className="px-2 py-0.5 rounded-full" style={{ background: '#fbf1dd', color: '#a06d0f' }}>△ 部分点 {partN}</span>
-            <span className="px-2 py-0.5 rounded-full" style={{ background: '#f8e6e6', color: '#b23b3b' }}>✕ {ngN}</span>
+            {okN > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: '#e8f3ed', color: '#2f7d5b' }}>✓ {okN}</span>}
+            {partN > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: '#fbf1dd', color: '#a06d0f' }}>△ 部分点 {partN}</span>}
+            {ngN > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: '#f8e6e6', color: '#b23b3b' }}>✕ {ngN}</span>}
           </div>
         </div>
       </div>
@@ -116,6 +116,15 @@ export const GradeCard: FC<{ grade: Grade }> = ({ grade }) => {
             <div className="shrink-0 text-[12.5px] font-bold whitespace-nowrap" style={{ color: it.mark === 'ok' ? '#2f7d5b' : it.mark === 'part' ? '#a06d0f' : '#b23b3b' }}>{fmt(it.got)} / {fmt(it.max)}</div>
           </div>
         ))}
+      </div>
+      {/* 採点の過程(各基準の点を足して合計になる式)を最後に必ず見せる */}
+      <div className="mt-2 rounded-xl px-3 py-2.5 text-[13px] font-bold flex flex-wrap items-baseline gap-x-1.5" style={{ background: '#13254a', color: '#fff' }}>
+        <span className="text-[11px] font-normal opacity-80 mr-1">採点の合計</span>
+        {items.map((it, i) => (
+          <span key={i}>{i > 0 && <span className="opacity-70 mr-1.5">+</span>}<span style={{ color: it.mark === 'ok' ? '#9be0bd' : it.mark === 'part' ? GOLD_LIGHT : '#f3a3a3' }}>{fmt(it.got)}</span></span>
+        ))}
+        <span className="opacity-70">=</span>
+        <span style={{ color: GOLD_LIGHT }}>{fmt(total)} / 20点</span>
       </div>
       {rest && (
         <div className="mt-4 pt-3 text-sm text-gray-900 [&_h2]:!text-[15px] [&_h3]:!text-[15px] [&_h2]:!mt-4 [&_h3]:!mt-4 [&_h2]:!mb-1 [&_h3]:!mb-1 [&_h3]:font-bold" style={{ borderTop: '1px solid #efe7d6' }}>
