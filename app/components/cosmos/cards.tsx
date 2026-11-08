@@ -13,7 +13,7 @@ export const CREAM = '#f6f3ec'
 export const SERIF = '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","Noto Serif CJK JP",serif'
 
 type Mark = 'ok' | 'part' | 'ng'
-export interface GradeItem { mark: Mark, label: string, max: number, got: number }
+export interface GradeItem { mark: Mark, label: string, max: number, got: number, reason?: string }
 export interface Grade { items: GradeItem[], total: number, rest: string }
 
 const NUM = '(\\d+(?:\\.\\d+)?)'
@@ -37,7 +37,22 @@ export function parseGrade(content: string): Grade | null {
     let label = m[2]
     if (ptLine === i) { label = label.replace(PT_RE, '') }
     label = label.replace(/\*\*/g, '').replace(/[→\s　]+$/g, '').replace(/^[\s　]+/, '').replace(/\(部分点\)|（部分点）/g, '').trim()
-    items.push({ mark: m[1] === '✅' ? 'ok' : m[1] === '🔺' ? 'part' : 'ng', label, max: Number(pt[1]), got: Number(pt[2]) })
+    // 判定の理由(「理由: …」など)を、その基準の下に表示するために拾う
+    const reasons: string[] = []
+    for (let k = i + 1; k < ptLine; k++) {
+      const r = lines[k].trim()
+      if (r) { reasons.push(r) }
+    }
+    let k2 = ptLine + 1
+    while (k2 < lines.length) {
+      const r = lines[k2].replace(/\*\*/g, '').trim()
+      if (!r || /^(✅|🔺|❌|🧮|📋|#|---)/.test(r) || r.includes('採点結果')) { break }
+      reasons.push(r)
+      used.add(k2)
+      k2++
+    }
+    const reason = reasons.map(r => r.replace(/^[→\s　]*(?:判定)?(?:理由|根拠)\s*[:：]\s*/, '').trim()).filter(Boolean).join(' ')
+    items.push({ mark: m[1] === '✅' ? 'ok' : m[1] === '🔺' ? 'part' : 'ng', label, max: Number(pt[1]), got: Number(pt[2]), reason: reason || undefined })
     for (let k = i; k <= ptLine; k++) { used.add(k) }
   }
   if (items.length === 0) { return null }
@@ -98,9 +113,9 @@ export const GradeCard: FC<{ grade: Grade }> = ({ grade }) => {
           <div className="text-[18px] font-bold" style={{ fontFamily: SERIF, color: NAVY }}>{v1}</div>
           <div className="text-[12px] text-gray-500 mt-1 leading-relaxed">{v2}</div>
           <div className="flex gap-1.5 mt-2 text-[11px] font-bold">
-            <span className="px-2 py-0.5 rounded-full" style={{ background: '#e8f3ed', color: '#2f7d5b' }}>✓ {okN}</span>
-            <span className="px-2 py-0.5 rounded-full" style={{ background: '#fbf1dd', color: '#a06d0f' }}>△ 部分点 {partN}</span>
-            <span className="px-2 py-0.5 rounded-full" style={{ background: '#f8e6e6', color: '#b23b3b' }}>✕ {ngN}</span>
+            {okN > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: '#e8f3ed', color: '#2f7d5b' }}>✓ {okN}</span>}
+            {partN > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: '#fbf1dd', color: '#a06d0f' }}>△ 部分点 {partN}</span>}
+            {ngN > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: '#f8e6e6', color: '#b23b3b' }}>✕ {ngN}</span>}
           </div>
         </div>
       </div>
@@ -112,10 +127,20 @@ export const GradeCard: FC<{ grade: Grade }> = ({ grade }) => {
             <div className="flex-1 min-w-0 text-[13px] leading-snug text-gray-800">
               {it.label}
               {it.mark === 'part' && <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#fbf1dd', color: '#a06d0f' }}>部分点</span>}
+              {it.reason && <div className="mt-1.5 text-[12px] leading-relaxed text-gray-600"><span className="font-bold" style={{ color: NAVY }}>理由 </span>{it.reason}</div>}
             </div>
             <div className="shrink-0 text-[12.5px] font-bold whitespace-nowrap" style={{ color: it.mark === 'ok' ? '#2f7d5b' : it.mark === 'part' ? '#a06d0f' : '#b23b3b' }}>{fmt(it.got)} / {fmt(it.max)}</div>
           </div>
         ))}
+      </div>
+      {/* 採点の過程(各基準の点を足して合計になる式)を最後に必ず見せる */}
+      <div className="mt-2 rounded-xl px-3 py-2.5 text-[13px] font-bold flex flex-wrap items-baseline gap-x-1.5" style={{ background: '#13254a', color: '#fff' }}>
+        <span className="text-[11px] font-normal opacity-80 mr-1">採点の合計</span>
+        {items.map((it, i) => (
+          <span key={i}>{i > 0 && <span className="opacity-70 mr-1.5">+</span>}<span style={{ color: it.mark === 'ok' ? '#9be0bd' : it.mark === 'part' ? GOLD_LIGHT : '#f3a3a3' }}>{fmt(it.got)}</span></span>
+        ))}
+        <span className="opacity-70">=</span>
+        <span style={{ color: GOLD_LIGHT }}>{fmt(total)} / 20点</span>
       </div>
       {rest && (
         <div className="mt-4 pt-3 text-sm text-gray-900 [&_h2]:!text-[15px] [&_h3]:!text-[15px] [&_h2]:!mt-4 [&_h3]:!mt-4 [&_h2]:!mb-1 [&_h3]:!mb-1 [&_h3]:font-bold" style={{ borderTop: '1px solid #efe7d6' }}>
