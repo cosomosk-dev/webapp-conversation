@@ -17,6 +17,7 @@ import type { FileEntity, FileUpload } from '@/app/components/base/file-uploader
 import { getProcessedFiles } from '@/app/components/base/file-uploader-in-attachment/utils'
 import { ExamResultCard, LineIcon, RUBRIC_HEAD, XIcon, buildExamMessage, examProblemOf, fetchExamRubric, lastScoreOf, lineUrl, tweetUrl } from '@/app/components/cosmos/exam-card'
 import type { ExamScores } from '@/app/components/cosmos/exam-card'
+import { SpreadCard } from '@/app/components/cosmos/spread-card'
 
 // ---- 本試験モード(問44〜46の答案をAIで予想採点) ----
 // 入口は visibleFrom(試験終了の16:00)以降に出す。URLに ?exam=1 を付けると試験前でも出る(動作確認用)。
@@ -611,7 +612,8 @@ const Chat: FC<IChatProps> = ({
             <div className="mt-3 text-center text-[11.5px] text-gray-500">
               {premium ? '採点し放題プランをご利用中' : <>AI採点は無料で{FREE_LIMIT}回(<b style={{ color: GOLD }}>あと{remaining}回</b>)</>}
             </div>
-            <a href="/about" className="mt-5 flex items-center gap-3 bg-white rounded-2xl px-4 py-3" style={{ border: '1px solid #e7e0d0' }}>
+            <SpreadCard className="mt-4" n={stats.n} avg={avg} freeLimit={FREE_LIMIT} onCopied={ok => notify({ type: ok ? 'success' : 'error', message: ok ? 'コピーしました。貼り付けて送ってね' : 'コピーできませんでした', duration: 2000 })} />
+            <a href="/about" className="mt-3 flex items-center gap-3 bg-white rounded-2xl px-4 py-3" style={{ border: '1px solid #e7e0d0' }}>
               <span className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0" style={{ background: NAVY, color: GOLD_LIGHT, border: `1.5px solid ${GOLD}` }}>監修</span>
               <span className="flex-1"><span className="block text-[11px] text-gray-500">企画・監修</span><span className="block text-[13.5px]" style={{ color: '#1b2236' }}>行政書士 加藤貴大</span></span>
               <span className="text-[11px]" style={{ color: GOLD }}>相談・感想 →</span>
@@ -729,6 +731,9 @@ const Chat: FC<IChatProps> = ({
           )
         })}
       </div>
+      {hasUserMessage && phase !== 'asking' && phase !== 'grading' && (
+        <SpreadCard className="mt-6" n={stats.n} avg={avg} freeLimit={FREE_LIMIT} onCopied={ok => notify({ type: ok ? 'success' : 'error', message: ok ? 'コピーしました。貼り付けて送ってね' : 'コピーできませんでした', duration: 2000 })} />
+      )}
       {hasUserMessage && (
         <div className="mt-8 text-center text-[10.5px] leading-[1.9] text-gray-400">
           <div>※AIによる採点のため、不正確な場合があります</div>
