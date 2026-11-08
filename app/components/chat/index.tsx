@@ -685,7 +685,7 @@ const Chat: FC<IChatProps> = ({
                     onMcChange={saveExamMc}
                     storeUrl={EXAM_MODE.storeUrl}
                     utm={EXAM_MODE.utm}
-                    onCopied={ok => notify({ type: ok ? 'success' : 'error', message: ok ? '文面をコピーしました' : 'コピーできませんでした', duration: 2000 })}
+                    onCopied={ok => notify({ type: ok ? 'success' : 'error', message: ok ? 'コピーしました。インスタに貼り付けてね' : 'コピーできませんでした', duration: 2000 })}
                   />
                 )}
                 {isExamAnswer && !(isResponding && isLast) && (
