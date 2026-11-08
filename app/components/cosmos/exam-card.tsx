@@ -51,17 +51,17 @@ export const buildExamShareText = (opts: {
   const { problems, scores, mc, storeUrl, utm, channel = 'x' } = opts
   const written = writtenTotal(problems, scores)
   const detail = problems.map(p => `${p} ${typeof scores[p] === 'number' ? fmt(scores[p]) : '—'}`).join('／')
-  // インスタはURLが押せない(ストーリーズ・フィードの文中)ので、URLなしの短文。
-  // 「Google Playで検索」と、監修者アカウントのメンション(プロフィールのリンクから飛べる)で案内する
+  // インスタはURLが押せない(ストーリーズ・フィードの文中)ので、URLなし・ハッシュタグなしの短文。
+  // 「Google Playで検索」と、監修者アカウントのメンション(タップでプロフィールへ)で案内する
   if (channel === 'insta') {
-    const ig = ['行政書士試験 自己採点📝', `記述AI予想 ${fmt(written)}点`, `(${detail})`]
+    const ig = ['行政書士試験 自己採点📝', `記述AI予想 ${fmt(written)}点（${detail}）`]
     if (mc !== null)
-      ig.push(`択一${mc}点＋記述 ＝ 合計${fmt(mc + written)}点`)
-    ig.push('採点はアプリ「コスモスK」(無料)', 'Google Playで「コスモスK」と検索', `またはプロフィールから ${INSTAGRAM_HANDLE}`)
+      ig.push(`択一${mc}点＋記述${fmt(written)}点＝合計${fmt(mc + written)}点`)
+    ig.push('採点はアプリ「コスモスK」(無料)', 'Google Playで「コスモスK」と検索', `リンクは ${INSTAGRAM_HANDLE} のプロフィールに`)
     return ig.join('\n')
   }
-  // LINEはハッシュタグが効かないので、1行目を普通の見出しにする
-  const lines = [channel === 'line' ? '【行政書士試験 自己採点】' : '#行政書士試験 自己採点 #コスモスK']
+  // 1行目は点数と離した普通の見出し。ハッシュタグはXだけ、最後の行にまとめて置く(点数の行には混ぜない)
+  const lines = ['行政書士試験 自己採点📝']
   if (mc !== null) {
     lines.push(`択一 ${mc}点 ／ 記述AI予想 ${fmt(written)}点(${detail})`)
     lines.push(`合計 ${fmt(mc + written)}点(合格ライン${PASS_LINE})`)
@@ -70,6 +70,8 @@ export const buildExamShareText = (opts: {
     lines.push(`記述AI予想 ${fmt(written)}点(${detail})`)
   }
   lines.push(`記述の採点はコスモスK(無料) ${storeUrl}&referrer=${utm}`)
+  if (channel === 'x')
+    lines.push('#行政書士試験 #コスモスK')
   return lines.join('\n')
 }
 
