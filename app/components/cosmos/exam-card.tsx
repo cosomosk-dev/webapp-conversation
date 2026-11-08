@@ -2,6 +2,7 @@
 import type { FC } from 'react'
 import React from 'react'
 import { CREAM, GOLD, GOLD_LIGHT, NAVY, SERIF } from '@/app/components/cosmos/cards'
+import { ShareButtons } from '@/app/components/cosmos/share-buttons'
 
 // コスモスK 本試験モード(問44〜46)の結果カードと、Xに投稿する文面の組み立て。
 // 問題文は著作権の関係で一切表示しない(問番号と点数だけ)。
@@ -101,51 +102,11 @@ export const buildExamShareText = (opts: {
   return lines.join('\n')
 }
 
-export const tweetUrl = (text: string) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`
-/** LINEの「送る相手を選ぶ」画面を開くURL(スマホではLINEアプリが開く) */
-export const lineUrl = (text: string) => `https://line.me/R/share?text=${encodeURIComponent(text)}`
 /** 流入元の計測: X用のutm(utm_medium=x)をLINE用(utm_medium=line)に置き換える */
 export const toLineUtm = (utm: string) => utm.replace('utm_medium%3Dx', 'utm_medium%3Dline')
 
-/** クリップボードにコピー(古い端末向けのフォールバックつき) */
-export const copyText = async (text: string): Promise<boolean> => {
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text)
-      return true
-    }
-  }
-  catch { }
-  try {
-    const ta = document.createElement('textarea')
-    ta.value = text
-    ta.setAttribute('readonly', '')
-    ta.style.position = 'fixed'
-    ta.style.top = '-1000px'
-    ta.style.opacity = '0'
-    document.body.appendChild(ta)
-    ta.select()
-    ta.setSelectionRange(0, text.length)
-    const ok = document.execCommand('copy')
-    document.body.removeChild(ta)
-    return ok
-  }
-  catch {
-    return false
-  }
-}
-
-export const XIcon: FC<{ size?: number }> = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
-)
-
-export const LineIcon: FC<{ size?: number }> = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M12 2.5C6.2 2.5 1.5 6.3 1.5 11c0 4.2 3.7 7.7 8.8 8.4.3.1.8.2.9.5.1.3.1.7 0 1l-.1.9c0 .3-.2 1 .9.6 1.1-.5 6-3.5 8.2-6.1 1.5-1.6 2.3-3.3 2.3-5.3C22.5 6.3 17.8 2.5 12 2.5z" />
-  </svg>
-)
+export { copyText, lineUrl, tweetUrl } from '@/app/components/cosmos/share'
+export { InstagramIcon, LineIcon, XIcon } from '@/app/components/cosmos/share-buttons'
 
 /** 本試験の結果カードで★評価のお願いを出す点数(1問20点満点) */
 export const REVIEW_MIN_EXAM_SCORE = 15
@@ -157,8 +118,7 @@ export const ExamResultCard: FC<{
   onMcChange: (v: string) => void
   storeUrl: string
   utm: string
-  onCopied?: (ok: boolean) => void
-}> = ({ problems, scores, mcInput, onMcChange, storeUrl, utm, onCopied }) => {
+}> = ({ problems, scores, mcInput, onMcChange, storeUrl, utm }) => {
   const written = writtenTotal(problems, scores)
   const writtenMax = problems.length * WRITTEN_MAX_PER_PROBLEM
   const mcNum = mcInput.trim() === '' ? null : Number(mcInput)
@@ -234,34 +194,7 @@ export const ExamResultCard: FC<{
           <div className="mt-2 text-[11px] text-gray-400 px-1">択一の点を入れると、合計と合格ライン({PASS_LINE}点)までの差が出ます</div>
         )}
 
-      <div className="flex gap-2 mt-3">
-        <a
-          href={tweetUrl(shareText)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-[14px] font-bold text-white"
-          style={{ background: '#000' }}
-        >
-          <XIcon size={15} /> Xに投稿
-        </a>
-        <a
-          href={lineUrl(lineText)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-[14px] font-bold text-white"
-          style={{ background: '#06C755' }}
-        >
-          <LineIcon size={16} /> LINEで送る
-        </a>
-      </div>
-      <button
-        type="button"
-        onClick={async () => { const ok = await copyText(instaText); onCopied?.(ok) }}
-        className="w-full mt-2 rounded-xl px-3.5 py-2.5 text-[13px] font-bold bg-white"
-        style={{ color: NAVY, border: '1px solid #e7e0d0' }}
-      >
-        インスタ用の短い文をコピー
-      </button>
+      <ShareButtons className="mt-3" testIdPrefix="exam-share" texts={{ line: lineText, x: shareText, instagram: instaText }} />
       {showReview && (
         <div className="mt-3 rounded-xl px-3 py-3 text-center" style={{ background: CREAM, border: `1px solid ${GOLD}` }}>
           <div className="text-[13px] font-bold" style={{ color: NAVY }}>本試験の採点、役に立ちましたか？</div>

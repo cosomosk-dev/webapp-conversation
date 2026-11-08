@@ -4,10 +4,13 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -43,6 +46,19 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
         private const val WEB_APP_URL = "https://webapp-conversation-cosmosk.vercel.app"
         private const val JS_BRIDGE_NAME = "CosmosBilling"
+
+        /** アプリの中ではなく、外のアプリ(またはブラウザ)で開くサイト */
+        private val EXTERNAL_HOSTS = listOf(
+            "line.me", "twitter.com", "x.com", "instagram.com",
+            "play.google.com", "tiktok.com", "linkco.re", "linktr.ee",
+        )
+
+        /** 送り先ごとのアプリのパッケージ名 */
+        private val SHARE_PACKAGES = mapOf(
+            "line" to "jp.naver.line.android",
+            "x" to "com.twitter.android",
+            "instagram" to "com.instagram.android",
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -126,6 +142,7 @@ class MainActivity : AppCompatActivity() {
                 onReviewRequested = { runOnUiThread { launchInAppReview() } },
                 onNotificationPermissionRequested = { runOnUiThread { requestNotificationPermissionIfNeeded() } },
                 onGradingComplete = { runOnUiThread { logGradingCompleteEvent() } },
+                onShareRequested = { target, text -> runOnUiThread { shareTo(target, text) } },
             )
             addJavascriptInterface(bridge, JS_BRIDGE_NAME)
 
@@ -220,15 +237,89 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    /** LINE / X / インスタのアプリを直接開いて文面を送る。入っていなければ共有画面かWeb版へ */
+    private fun shareTo(target: String, text: String) {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        val pkg = SHARE_PACKAGES[target]
+        if (pkg != null) {
+            try {
+                startActivity(Intent(send).setPackage(pkg))
+                return
+            } catch (e: ActivityNotFoundException) {
+                Log.d(TAG, "share app not installed: $pkg")
+            }
+            when (target) {
+                "line" -> { openExternal("https://line.me/R/share?text=" + Uri.encode(text)); return }
+                "x" -> { openExternal("https://twitter.com/intent/tweet?text=" + Uri.encode(text)); return }
+            }
+        }
+        try {
+            startActivity(Intent.createChooser(send, "送り先を選ぶ"))
+        } catch (e: Exception) {
+            Log.e(TAG, "share failed: ${e.message}")
+        }
+    }
+
+    /** URLを外のアプリ(なければブラウザ)で開く */
+    private fun openExternal(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: ActivityNotFoundException) {
+            Log.e(TAG, "no app for url: $url")
+        }
+    }
+
+    /** intent:// のURLを開く。アプリが無いときは用意された代わりのURLか、Google Playのそのアプリのページへ */
+    private fun openIntentUrl(url: String) {
+        val intent = try {
+            Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+        } catch (e: Exception) {
+            Log.e(TAG, "bad intent url: ${e.message}")
+            return
+        }
+        intent.addCategory(Intent.CATEGORY_BROWSABLE)
+        intent.component = null
+        intent.selector = null
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            val fallback = intent.getStringExtra("browser_fallback_url")
+            when {
+                !fallback.isNullOrEmpty() -> openExternal(fallback)
+                !intent.`package`.isNullOrEmpty() -> openExternal("market://details?id=" + intent.`package`)
+            }
+        }
+    }
+
     private inner class AppWebViewClient : WebViewClient() {
 
         override fun shouldOverrideUrlLoading(
             view: WebView?,
             request: WebResourceRequest?
         ): Boolean {
-            val url = request?.url?.toString() ?: return false
+            val uri = request?.url ?: return false
+            val url = uri.toString()
             if (url.startsWith(WEB_APP_URL) || url.contains("webapp-conversation-cosmosk")) {
                 return false
+            }
+            val scheme = uri.scheme?.lowercase() ?: return false
+            // intent://(LINEの共有リンクなどが最後にたどり着く形)は、中身のアプリを直接開く
+            if (scheme == "intent") {
+                openIntentUrl(url)
+                return true
+            }
+            // line: / market: / mailto: など http 以外は外のアプリへ
+            if (scheme != "http" && scheme != "https") {
+                openExternal(url)
+                return true
+            }
+            val host = uri.host?.lowercase() ?: return false
+            if (EXTERNAL_HOSTS.any { host == it || host.endsWith(".$it") }) {
+                openExternal(url)
+                return true
             }
             return false
         }

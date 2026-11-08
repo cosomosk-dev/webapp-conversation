@@ -8,6 +8,7 @@ class WebAppInterface(
     private val onReviewRequested: () -> Unit,
     private val onNotificationPermissionRequested: () -> Unit,
     private val onGradingComplete: () -> Unit,
+    private val onShareRequested: (target: String, text: String) -> Unit,
 ) {
     @JavascriptInterface
     fun subscribe() {
@@ -35,5 +36,11 @@ class WebAppInterface(
     @JavascriptInterface
     fun logGradingComplete() {
         onGradingComplete()
+    }
+
+    /** LINE / X / インスタのアプリを直接開いて文面を送る。target は "line" / "x" / "instagram" */
+    @JavascriptInterface
+    fun shareTo(target: String, text: String) {
+        onShareRequested(target, text)
     }
 }
