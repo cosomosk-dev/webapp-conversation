@@ -8,27 +8,20 @@ import { ShareButtons } from '@/app/components/cosmos/share-buttons'
 // 「勉強仲間に教える」(拡散)カード — 普段のコスモスK用。
 // ・LINE / X / インスタ のアプリを直接開いて、アプリの紹介とストアのリンクを広める
 // ・送るのはアプリの紹介と「何問練習したか・平均点」だけ。答案の中身は送らない
-// ・どこから来た人かを分けて数えられるよう、utm_medium を line / x / copy で変える(utm_campaign=spread)
+// ・文面は短く。リンクは計測用の文字を付けない素のストアURL(長いと怪しく見えるため)
 
-const STORE_URL = 'https://play.google.com/store/apps/details?id=com.cosmosk.app'
-export const spreadStoreLink = (medium: 'line' | 'x') =>
-  `${STORE_URL}&referrer=utm_source%3Dshare%26utm_medium%3D${medium}%26utm_campaign%3Dspread`
+export const STORE_URL = 'https://play.google.com/store/apps/details?id=com.cosmosk.app'
 
-/** 広める文面。n=採点した数, avg=平均点(表示用の文字列), freeLimit=無料で採点できる回数 */
-export const buildSpreadText = (opts: { n: number, avg: string, freeLimit: number, channel: 'line' | 'x' | 'instagram' }) => {
-  const { n, avg, freeLimit, channel } = opts
-  const lead = n > 0
-    ? `行政書士試験の記述式、コスモスKで${n}問練習中(平均${avg}点/20)。`
-    : '行政書士試験の記述式、コスモスKで練習中。'
-  // インスタは文中のURLが押せないので、URLの代わりに「Google Playで検索」と監修者アカウントで案内する
+/** 広める文面。freeLimit=無料で採点できる回数(n・avgは今は使わない) */
+export const buildSpreadText = (opts: { n?: number, avg?: string, freeLimit: number, channel: 'line' | 'x' | 'instagram' }) => {
+  const { freeLimit, channel } = opts
+  const head = '行政書士試験の記述式、書いた答案をAIが数秒で採点してくれるアプリ「コスモスK」'
+  const proof = `Google Playで5,000ダウンロード突破・${freeLimit}回まで無料`
+  // インスタは文中のURLが押せないので、URLの代わりに「Google Playで検索」と案内する
   if (channel === 'instagram') {
-    return [lead, `40字で書くと、AIが数秒で20点採点。行政書士監修の92問・採点${freeLimit}回まで無料`, 'Google Playで「コスモスK」と検索', `リンクは ${INSTAGRAM_HANDLE} のプロフィールに`].join('\n')
+    return [head, proof, 'Google Playで「コスモスK」と検索', `リンクは ${INSTAGRAM_HANDLE} のプロフィールに`].join('\n')
   }
-  const lines = [
-    lead,
-    `40字で書くと、AIが数秒で20点採点。行政書士監修の92問・部分点つき・採点${freeLimit}回まで無料`,
-    spreadStoreLink(channel === 'x' ? 'x' : 'line'),
-  ]
+  const lines = [head, proof, STORE_URL]
   if (channel === 'x') { lines.push('#行政書士試験 #コスモスK') }
   return lines.join('\n')
 }
