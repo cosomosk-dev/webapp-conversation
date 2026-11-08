@@ -13,7 +13,7 @@ export const CREAM = '#f6f3ec'
 export const SERIF = '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP","Noto Serif CJK JP",serif'
 
 type Mark = 'ok' | 'part' | 'ng'
-export interface GradeItem { mark: Mark, label: string, max: number, got: number }
+export interface GradeItem { mark: Mark, label: string, max: number, got: number, reason?: string }
 export interface Grade { items: GradeItem[], total: number, rest: string }
 
 const NUM = '(\\d+(?:\\.\\d+)?)'
@@ -37,7 +37,22 @@ export function parseGrade(content: string): Grade | null {
     let label = m[2]
     if (ptLine === i) { label = label.replace(PT_RE, '') }
     label = label.replace(/\*\*/g, '').replace(/[→\s　]+$/g, '').replace(/^[\s　]+/, '').replace(/\(部分点\)|（部分点）/g, '').trim()
-    items.push({ mark: m[1] === '✅' ? 'ok' : m[1] === '🔺' ? 'part' : 'ng', label, max: Number(pt[1]), got: Number(pt[2]) })
+    // 判定の理由(「理由: …」など)を、その基準の下に表示するために拾う
+    const reasons: string[] = []
+    for (let k = i + 1; k < ptLine; k++) {
+      const r = lines[k].trim()
+      if (r) { reasons.push(r) }
+    }
+    let k2 = ptLine + 1
+    while (k2 < lines.length) {
+      const r = lines[k2].replace(/\*\*/g, '').trim()
+      if (!r || /^(✅|🔺|❌|🧮|📋|#|---)/.test(r) || r.includes('採点結果')) { break }
+      reasons.push(r)
+      used.add(k2)
+      k2++
+    }
+    const reason = reasons.map(r => r.replace(/^[→\s　]*(?:判定)?(?:理由|根拠)\s*[:：]\s*/, '').trim()).filter(Boolean).join(' ')
+    items.push({ mark: m[1] === '✅' ? 'ok' : m[1] === '🔺' ? 'part' : 'ng', label, max: Number(pt[1]), got: Number(pt[2]), reason: reason || undefined })
     for (let k = i; k <= ptLine; k++) { used.add(k) }
   }
   if (items.length === 0) { return null }
@@ -112,6 +127,7 @@ export const GradeCard: FC<{ grade: Grade }> = ({ grade }) => {
             <div className="flex-1 min-w-0 text-[13px] leading-snug text-gray-800">
               {it.label}
               {it.mark === 'part' && <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#fbf1dd', color: '#a06d0f' }}>部分点</span>}
+              {it.reason && <div className="mt-1.5 text-[12px] leading-relaxed text-gray-600"><span className="font-bold" style={{ color: NAVY }}>理由 </span>{it.reason}</div>}
             </div>
             <div className="shrink-0 text-[12.5px] font-bold whitespace-nowrap" style={{ color: it.mark === 'ok' ? '#2f7d5b' : it.mark === 'part' ? '#a06d0f' : '#b23b3b' }}>{fmt(it.got)} / {fmt(it.max)}</div>
           </div>
