@@ -83,7 +83,7 @@ export const buildExamShareText = (opts: {
     const ig = ['行政書士試験 自己採点📝', `記述AI予想 ${fmt(written)}点（${detail}）`]
     if (mc !== null)
       ig.push(`択一${mc}点＋記述${fmt(written)}点＝合計${fmt(mc + written)}点`)
-    ig.push('採点はアプリ「コスモスK」(無料)', 'Google Playで「コスモスK」と検索', `リンクは ${INSTAGRAM_HANDLE} のプロフィールに`)
+    ig.push('採点はアプリ「コスモスK」(無料・登録不要)', 'Google Playで「コスモスK」と検索', `リンクは ${INSTAGRAM_HANDLE} のプロフィールに`)
     return ig.join('\n')
   }
   // 1行目は点数と離した普通の見出し。ハッシュタグはXだけ、最後の行にまとめて置く(点数の行には混ぜない)
@@ -95,7 +95,7 @@ export const buildExamShareText = (opts: {
   else {
     lines.push(`記述AI予想 ${fmt(written)}点(${detail})`)
   }
-  lines.push(`記述の採点はコスモスK(無料) ${storeUrl}&referrer=${utm}`)
+  lines.push(`記述の採点はコスモスK(無料・登録不要) ${storeUrl}&referrer=${utm}`)
   if (channel === 'x')
     lines.push('#行政書士試験 #コスモスK')
   return lines.join('\n')
@@ -147,6 +147,9 @@ export const LineIcon: FC<{ size?: number }> = ({ size = 14 }) => (
   </svg>
 )
 
+/** 本試験の結果カードで★評価のお願いを出す点数(1問20点満点) */
+export const REVIEW_MIN_EXAM_SCORE = 15
+
 export const ExamResultCard: FC<{
   problems: readonly string[]
   scores: ExamScores
@@ -165,6 +168,8 @@ export const ExamResultCard: FC<{
   const lineText = buildExamShareText({ problems, scores, mc, storeUrl, utm: toLineUtm(utm), channel: 'line' })
   const instaText = buildExamShareText({ problems, scores, mc, storeUrl, utm, channel: 'insta' })
   const unscored = problems.filter(p => typeof scores[p] !== 'number')
+  // 評価のお願いは、どれか1問で15点以上を取った人にだけ出す(低い点の直後に頼むと★1になりやすいため。練習モードの15点ルールと同じ)
+  const showReview = problems.some(p => typeof scores[p] === 'number' && (scores[p] as number) >= REVIEW_MIN_EXAM_SCORE)
 
   return (
     <div className="mt-3 rounded-2xl bg-white border p-4" style={{ borderColor: GOLD, boxShadow: '0 10px 30px rgba(15,29,56,.10)' }}>
@@ -257,6 +262,21 @@ export const ExamResultCard: FC<{
       >
         インスタ用の短い文をコピー
       </button>
+      {showReview && (
+        <div className="mt-3 rounded-xl px-3 py-3 text-center" style={{ background: CREAM, border: `1px solid ${GOLD}` }}>
+          <div className="text-[13px] font-bold" style={{ color: NAVY }}>本試験の採点、役に立ちましたか？</div>
+          <div className="text-[11.5px] text-gray-600 mt-1 leading-[1.6]">登録不要・無料で使える速報採点です。<br />★で応援してもらえると、来年の受験生にも届きます</div>
+          <a
+            href={storeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center justify-center rounded-xl px-5 py-2.5 text-[14px] font-bold"
+            style={{ background: GOLD, color: NAVY }}
+          >
+            ★ Google Playで評価する
+          </a>
+        </div>
+      )}
       <div className="mt-2 text-[10.5px] leading-[1.7] text-gray-400">※AIによる予想採点のため、実際の得点とは異なる場合があります。注記: 速報版の予想採点です(各予備校の模範解答ベース)。確定版は11/22</div>
     </div>
   )

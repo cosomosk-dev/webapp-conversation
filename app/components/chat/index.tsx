@@ -274,7 +274,7 @@ const Chat: FC<IChatProps> = ({
     examSendingRef.current = false
     // 基準がまだ無い問はDifyに送らない(AIが自分で基準を作って採点してしまうため)。回数も消費しない
     if (!rubric) {
-      notify({ type: 'info', message: `${examProblem}の採点基準は準備中です。予備校各社の解答例がそろいしだい(今夜19時ごろ〜)採点できます`, duration: 5000 })
+      notify({ type: 'info', message: `${examProblem}の採点基準は準備中です。予備校各社の解答例がそろいしだい(今夜20時ごろ〜)採点できます`, duration: 5000 })
       return
     }
     examPendingRef.current = examProblem
