@@ -15,7 +15,8 @@ import Toast from '@/app/components/base/toast'
 import { useImageFiles } from '@/app/components/base/image-uploader/hooks'
 import type { FileEntity, FileUpload } from '@/app/components/base/file-uploader-in-attachment/types'
 import { getProcessedFiles } from '@/app/components/base/file-uploader-in-attachment/utils'
-import { ExamResultCard, LineIcon, RUBRIC_HEAD, XIcon, buildExamMessage, examProblemOf, fetchExamRubric, lastScoreOf, lineUrl, tweetUrl } from '@/app/components/cosmos/exam-card'
+import { ExamResultCard, LineIcon, RUBRIC_HEAD, XIcon, buildExamMessage, examProblemOf, fetchExamRubric, lastScoreOf } from '@/app/components/cosmos/exam-card'
+import { doShare } from '@/app/components/cosmos/share-buttons'
 import type { ExamScores } from '@/app/components/cosmos/exam-card'
 import { SpreadCard } from '@/app/components/cosmos/spread-card'
 
@@ -593,7 +594,7 @@ const Chat: FC<IChatProps> = ({
                 <span className="min-w-0">
                   <span className="block text-[17px] font-bold" style={{ fontFamily: SERIF, color: NAVY }}>📝 本試験の記述を採点(問44〜46)</span>
                   <span className="block text-[11.5px] mt-0.5 text-gray-500">答案を入力 → AIが20点満点で予想採点 ・ 無料・回数制限なし</span>
-                  <span className="block text-[11px] mt-1 font-bold" style={{ color: GOLD }}>結果はXに投稿できます</span>
+                  <span className="block text-[11px] mt-1 font-bold" style={{ color: GOLD }}>結果はLINE・X・インスタで送れます</span>
                 </span>
                 <span className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-base ml-2" style={{ background: NAVY, color: GOLD_LIGHT }}>▶</span>
               </button>
@@ -612,7 +613,7 @@ const Chat: FC<IChatProps> = ({
             <div className="mt-3 text-center text-[11.5px] text-gray-500">
               {premium ? '採点し放題プランをご利用中' : <>AI採点は無料で{FREE_LIMIT}回(<b style={{ color: GOLD }}>あと{remaining}回</b>)</>}
             </div>
-            <SpreadCard className="mt-4" n={stats.n} avg={avg} freeLimit={FREE_LIMIT} onCopied={ok => notify({ type: ok ? 'success' : 'error', message: ok ? 'コピーしました。貼り付けて送ってね' : 'コピーできませんでした', duration: 2000 })} />
+            <SpreadCard className="mt-4" n={stats.n} avg={avg} freeLimit={FREE_LIMIT} />
             <a href="/about" className="mt-3 flex items-center gap-3 bg-white rounded-2xl px-4 py-3" style={{ border: '1px solid #e7e0d0' }}>
               <span className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0" style={{ background: NAVY, color: GOLD_LIGHT, border: `1.5px solid ${GOLD}` }}>監修</span>
               <span className="flex-1"><span className="block text-[11px] text-gray-500">企画・監修</span><span className="block text-[13.5px]" style={{ color: '#1b2236' }}>行政書士 加藤貴大</span></span>
@@ -697,7 +698,6 @@ const Chat: FC<IChatProps> = ({
                     onMcChange={saveExamMc}
                     storeUrl={EXAM_MODE.storeUrl}
                     utm={EXAM_MODE.utm}
-                    onCopied={ok => notify({ type: ok ? 'success' : 'error', message: ok ? 'コピーしました。インスタに貼り付けてね' : 'コピーできませんでした', duration: 2000 })}
                   />
                 )}
                 {isExamAnswer && !(isResponding && isLast) && (
@@ -732,7 +732,7 @@ const Chat: FC<IChatProps> = ({
         })}
       </div>
       {hasUserMessage && phase !== 'asking' && phase !== 'grading' && (
-        <SpreadCard className="mt-6" n={stats.n} avg={avg} freeLimit={FREE_LIMIT} onCopied={ok => notify({ type: ok ? 'success' : 'error', message: ok ? 'コピーしました。貼り付けて送ってね' : 'コピーできませんでした', duration: 2000 })} />
+        <SpreadCard className="mt-6" n={stats.n} avg={avg} freeLimit={FREE_LIMIT} />
       )}
       {hasUserMessage && (
         <div className="mt-8 text-center text-[10.5px] leading-[1.9] text-gray-400">
@@ -761,8 +761,8 @@ const Chat: FC<IChatProps> = ({
           ? (
             <span className="inline-flex items-center gap-1.5">
               <span className="text-gray-500">結果を</span>
-              <a href={tweetUrl(practiceShareText)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-blue-600 underline"><XIcon size={10} />X</a>
-              <a href={lineUrl(practiceLineText)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline" style={{ color: '#06A447' }}><LineIcon size={11} />LINE</a>
+              <button type="button" onClick={() => doShare('x', practiceShareText)} className="inline-flex items-center gap-0.5 text-blue-600 underline"><XIcon size={10} />X</button>
+              <button type="button" onClick={() => doShare('line', practiceLineText)} className="inline-flex items-center gap-0.5 underline" style={{ color: '#06A447' }}><LineIcon size={11} />LINE</button>
             </span>
           )
           : null
