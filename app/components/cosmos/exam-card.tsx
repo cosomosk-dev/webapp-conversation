@@ -24,8 +24,34 @@ export const examProblemOf = (message: string): string | null => {
   const m = (message || '').trim().match(EXAM_PREFIX_RE)
   return m ? m[1] : null
 }
-/** 送信文面から答案本体だけ取り出す(表示用) */
-export const examAnswerOf = (message: string): string => (message || '').trim().replace(EXAM_PREFIX_RE, '').trim()
+/** 送信文面から答案本体だけ取り出す(表示用)。後ろに付けた採点基準は見せない */
+export const examAnswerOf = (message: string): string => {
+  const body = (message || '').trim().replace(EXAM_PREFIX_RE, '')
+  const cut = body.indexOf(RUBRIC_HEAD)
+  return (cut >= 0 ? body.slice(0, cut) : body).trim()
+}
+
+// ---- 本試験の採点基準(速報) ----
+// 採点基準はアプリの更新なしで差し替えられるよう、GitHubの別ブランチ exam-rubric の
+// exam-rubric.json に置く(Claudeの予約タスクが試験当日の夜に予備校の解答例から作って更新する)。
+// 送信時にその問の基準を取りに行き、答案の後ろに付けてDifyへ送る。取れなければ答案だけ送る(Dify側が「準備中」と返す)。
+export const RUBRIC_HEAD = '【採点基準(速報)】'
+export const RUBRIC_URL = 'https://raw.githubusercontent.com/cosomosk-dev/webapp-conversation/exam-rubric/exam-rubric.json'
+export const fetchExamRubric = async (problem: string): Promise<string | null> => {
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 5000)
+    const res = await fetch(`${RUBRIC_URL}?t=${Math.floor(Date.now() / 60000)}`, { signal: ctrl.signal, cache: 'no-store' })
+    clearTimeout(timer)
+    if (!res.ok) { return null }
+    const json = await res.json()
+    const r = json?.problems?.[problem]
+    return (typeof r === 'string' && r.trim()) ? r.trim() : null
+  }
+  catch {
+    return null
+  }
+}
 
 /** 採点結果の文章から「◯/20」を読む(最後に出てきたものを採用)。読めなければ -1 */
 export const lastScoreOf = (text: string): number => {
