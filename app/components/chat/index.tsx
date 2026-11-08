@@ -15,7 +15,7 @@ import Toast from '@/app/components/base/toast'
 import { useImageFiles } from '@/app/components/base/image-uploader/hooks'
 import type { FileEntity, FileUpload } from '@/app/components/base/file-uploader-in-attachment/types'
 import { getProcessedFiles } from '@/app/components/base/file-uploader-in-attachment/utils'
-import { ExamResultCard, XIcon, buildExamMessage, examProblemOf, lastScoreOf, tweetUrl } from '@/app/components/cosmos/exam-card'
+import { ExamResultCard, LineIcon, XIcon, buildExamMessage, examProblemOf, lastScoreOf, lineUrl, tweetUrl } from '@/app/components/cosmos/exam-card'
 import type { ExamScores } from '@/app/components/cosmos/exam-card'
 
 // ---- 本試験モード(問44〜46の答案をAIで予想採点) ----
@@ -32,6 +32,7 @@ export const EXAM_MODE = {
 export const EXAM_SCORES_KEY = 'cosmosk_exam_scores'
 export const EXAM_MC_KEY = 'cosmosk_exam_mc'
 const PRACTICE_UTM = 'utm_source%3Dshare%26utm_medium%3Dx%26utm_campaign%3Dpractice'
+const PRACTICE_UTM_LINE = 'utm_source%3Dshare%26utm_medium%3Dline%26utm_campaign%3Dpractice'
 
 export interface IChatProps {
   chatList: ChatItem[]
@@ -397,6 +398,9 @@ const Chat: FC<IChatProps> = ({
   const practiceShareText = lastPracticeScore >= 0
     ? `コスモスKで記述式を練習中 今日の採点 ${Number.isInteger(lastPracticeScore) ? lastPracticeScore : lastPracticeScore.toFixed(1)}/20 #行政書士試験 ${EXAM_MODE.storeUrl}&referrer=${PRACTICE_UTM}`
     : ''
+  const practiceLineText = lastPracticeScore >= 0
+    ? `行政書士試験の記述式、コスモスKで練習中。今日の採点 ${Number.isInteger(lastPracticeScore) ? lastPracticeScore : lastPracticeScore.toFixed(1)}/20\n${EXAM_MODE.storeUrl}&referrer=${PRACTICE_UTM_LINE}`
+    : ''
 
   const blurActive = () => {
     try { (document.activeElement as HTMLElement | null)?.blur?.() }
@@ -737,9 +741,15 @@ const Chat: FC<IChatProps> = ({
         const reviewLink = showReviewLink
           ? <a href="https://play.google.com/store/apps/details?id=com.cosmosk.app" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">🌸 Google Playで評価する</a>
           : null
-        // 練習の採点結果(◯/20が読めたとき)だけ、控えめに「結果をXに投稿」を出す
+        // 練習の採点結果(◯/20が読めたとき)だけ、控えめに「結果を X / LINE」を出す
         const practiceShare = practiceShareText
-          ? <a href={tweetUrl(practiceShareText)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-600 underline"><XIcon size={10} />結果をXに投稿</a>
+          ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="text-gray-500">結果を</span>
+              <a href={tweetUrl(practiceShareText)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-blue-600 underline"><XIcon size={10} />X</a>
+              <a href={lineUrl(practiceLineText)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 underline" style={{ color: '#06A447' }}><LineIcon size={11} />LINE</a>
+            </span>
+          )
           : null
         const rightLinks = (reviewLink || practiceShare)
           ? <span className="flex items-center gap-2">{practiceShare}{reviewLink}</span>
