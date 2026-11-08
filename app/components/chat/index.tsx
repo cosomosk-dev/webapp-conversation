@@ -33,8 +33,6 @@ export const EXAM_MODE = {
 } as const
 export const EXAM_SCORES_KEY = 'cosmosk_exam_scores'
 export const EXAM_MC_KEY = 'cosmosk_exam_mc'
-const PRACTICE_UTM = 'utm_source%3Dshare%26utm_medium%3Dx%26utm_campaign%3Dpractice'
-const PRACTICE_UTM_LINE = 'utm_source%3Dshare%26utm_medium%3Dline%26utm_campaign%3Dpractice'
 
 export interface IChatProps {
   chatList: ChatItem[]
@@ -408,10 +406,10 @@ const Chat: FC<IChatProps> = ({
   // 練習の採点結果(最後)から読んだ点数。「結果をXに投稿」はこれが読めたときだけ出す
   const lastPracticeScore = (phase === 'graded' && !lastIsExam && lastItem?.isAnswer && lastItem.content) ? lastScoreOf(lastItem.content) : -1
   const practiceShareText = lastPracticeScore >= 0
-    ? `コスモスKで記述式を練習中 今日の採点 ${Number.isInteger(lastPracticeScore) ? lastPracticeScore : lastPracticeScore.toFixed(1)}/20\n${EXAM_MODE.storeUrl}&referrer=${PRACTICE_UTM}\n#行政書士試験 #コスモスK`
+    ? `コスモスKで記述式を練習中 今日の採点 ${Number.isInteger(lastPracticeScore) ? lastPracticeScore : lastPracticeScore.toFixed(1)}/20\n${EXAM_MODE.storeUrl}\n#行政書士試験 #コスモスK`
     : ''
   const practiceLineText = lastPracticeScore >= 0
-    ? `行政書士試験の記述式、コスモスKで練習中。今日の採点 ${Number.isInteger(lastPracticeScore) ? lastPracticeScore : lastPracticeScore.toFixed(1)}/20\n${EXAM_MODE.storeUrl}&referrer=${PRACTICE_UTM_LINE}`
+    ? `行政書士試験の記述式、コスモスKで練習中。今日の採点 ${Number.isInteger(lastPracticeScore) ? lastPracticeScore : lastPracticeScore.toFixed(1)}/20\n${EXAM_MODE.storeUrl}`
     : ''
 
   const blurActive = () => {

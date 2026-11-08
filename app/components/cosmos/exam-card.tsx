@@ -72,10 +72,10 @@ export const buildExamShareText = (opts: {
   scores: ExamScores
   mc: number | null
   storeUrl: string
-  utm: string
+  utm?: string
   channel?: 'x' | 'line' | 'insta'
 }) => {
-  const { problems, scores, mc, storeUrl, utm, channel = 'x' } = opts
+  const { problems, scores, mc, storeUrl, channel = 'x' } = opts
   const written = writtenTotal(problems, scores)
   const detail = problems.map(p => `${p} ${typeof scores[p] === 'number' ? fmt(scores[p]) : '—'}`).join('／')
   // インスタはURLが押せない(ストーリーズ・フィードの文中)ので、URLなし・ハッシュタグなしの短文。
@@ -96,7 +96,7 @@ export const buildExamShareText = (opts: {
   else {
     lines.push(`記述AI予想 ${fmt(written)}点(${detail})`)
   }
-  lines.push(`記述の採点はコスモスK(無料・登録不要) ${storeUrl}&referrer=${utm}`)
+  lines.push(`記述の採点はコスモスK(無料・登録不要) ${storeUrl}`)
   if (channel === 'x')
     lines.push('#行政書士試験 #コスモスK')
   return lines.join('\n')
