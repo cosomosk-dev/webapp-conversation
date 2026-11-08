@@ -15,7 +15,7 @@ import Toast from '@/app/components/base/toast'
 import { useImageFiles } from '@/app/components/base/image-uploader/hooks'
 import type { FileEntity, FileUpload } from '@/app/components/base/file-uploader-in-attachment/types'
 import { getProcessedFiles } from '@/app/components/base/file-uploader-in-attachment/utils'
-import { ExamResultCard, LineIcon, XIcon, buildExamMessage, examProblemOf, lastScoreOf, lineUrl, tweetUrl } from '@/app/components/cosmos/exam-card'
+import { ExamResultCard, LineIcon, RUBRIC_HEAD, XIcon, buildExamMessage, examProblemOf, fetchExamRubric, lastScoreOf, lineUrl, tweetUrl } from '@/app/components/cosmos/exam-card'
 import type { ExamScores } from '@/app/components/cosmos/exam-card'
 
 // ---- 本試験モード(問44〜46の答案をAIで予想採点) ----
@@ -259,16 +259,21 @@ const Chat: FC<IChatProps> = ({
     setExamOpen(false)
     blurActive()
   }
-  const sendExam = () => {
-    if (isResponding) { return }
+  const examSendingRef = useRef(false)
+  const sendExam = async () => {
+    if (isResponding || examSendingRef.current) { return }
     const ans = examAnswer.replace(/\s+/g, ' ').trim()
     if (!ans) {
       logError(`${examProblem}の答案を入力してください`)
       return
     }
     if (checkCanSend && !checkCanSend()) { return }
+    // その問の採点基準(速報)を取りに行き、あれば答案の後ろに付ける(表示では隠す)
+    examSendingRef.current = true
+    const rubric = await fetchExamRubric(examProblem)
+    examSendingRef.current = false
     examPendingRef.current = examProblem
-    const msg = buildExamMessage(examProblem, ans)
+    const msg = buildExamMessage(examProblem, ans) + (rubric ? `\n\n${RUBRIC_HEAD}\n${rubric}` : '')
     setQuery(msg)
     queryRef.current = msg
     handleSend()
