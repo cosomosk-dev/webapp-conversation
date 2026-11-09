@@ -617,7 +617,7 @@ const Chat: FC<IChatProps> = ({
               <span className="flex-1"><span className="block text-[11px] text-gray-500">企画・監修</span><span className="block text-[13.5px]" style={{ color: '#1b2236' }}>行政書士 加藤貴大</span></span>
               <span className="text-[11px]" style={{ color: GOLD }}>相談・感想 →</span>
             </a>
-            <div className="mt-3 text-center text-[10px] text-gray-400">※AIによる採点のため、不正確な場合があります ・ <a href="/privacy" className="underline">プライバシーポリシー</a></div>
+            <div className="mt-3 text-center text-[10px] text-gray-400">※AIによる採点のため、不正確な場合があります ・ <a href="/terms" className="underline">利用規約</a> ・ <a href="/privacy" className="underline">プライバシーポリシー</a></div>
           </div>
         </div>
       )}
@@ -656,12 +656,16 @@ const Chat: FC<IChatProps> = ({
                   >
                     採点し放題プラン（月500円）に登録
                   </button>
-                  <div className="text-xs text-gray-500 mb-2">※自動更新のプランです。いつでも解約でき、次回の更新日より前に解約すれば追加の請求はありません。（試験が終わっても自動では終了しないため、不要になったら解約してください）</div>
-                  <a href="https://play.google.com/store/account/subscriptions" target="_blank" rel="noopener noreferrer" className="block text-xs text-blue-600 underline mb-4">サブスクリプションの管理・解約はこちら（Google Play）</a>
+                  <div className="text-xs text-gray-500 mb-2">※月額500円・1か月ごとに自動更新されるプランです。いつでも解約でき、次回の更新日より前に解約すれば追加の請求はありません。（試験が終わっても自動では終了しないため、不要になったら解約してください）</div>
+                  <div className="text-xs text-gray-500 mb-2">解約は、iPhoneは「設定」→「サブスクリプション」、Androidは「Google Play」→「定期購入」から。</div>
+                  <div className="text-xs mb-4"><a href="/terms" className="text-blue-600 underline">利用規約</a><span className="mx-1 text-gray-400">・</span><a href="/privacy" className="text-blue-600 underline">プライバシーポリシー</a></div>
                 </>
               )
               : (
-                <div className="text-xs text-gray-400 mb-2">採点し放題プランは近日提供予定です</div>
+                <>
+                  <div className="text-xs text-gray-400 mb-2">採点し放題プランは、アプリ版でご利用いただけます</div>
+                  <div className="text-xs mb-2"><a href="/terms" className="text-blue-600 underline">利用規約</a><span className="mx-1 text-gray-400">・</span><a href="/privacy" className="text-blue-600 underline">プライバシーポリシー</a></div>
+                </>
               )}
             <button onClick={() => setShowPaywall(false)} className="w-full py-2 rounded-full border border-gray-300 text-gray-600 text-sm">閉じる</button>
           </div>
@@ -736,7 +740,7 @@ const Chat: FC<IChatProps> = ({
         <div className="mt-8 text-center text-[10.5px] leading-[1.9] text-gray-400">
           <div>※AIによる採点のため、不正確な場合があります</div>
           <div><a href="/about" className="underline" style={{ color: NAVY }}>📩 監修者に相談・感想 →</a></div>
-          <div><a href="/about" className="text-gray-500 underline">👤企画・監修:行政書士 加藤貴大</a><span className="mx-1">・</span><a href="/privacy" className="text-gray-500 underline">プライバシーポリシー</a></div>
+          <div><a href="/about" className="text-gray-500 underline">👤企画・監修:行政書士 加藤貴大</a><span className="mx-1">・</span><a href="/terms" className="text-gray-500 underline">利用規約</a><span className="mx-1">・</span><a href="/privacy" className="text-gray-500 underline">プライバシーポリシー</a></div>
         </div>
       )}
       {!isHideSendInput && hasUserMessage && phase !== 'asking' && phase !== 'grading' && (() => {

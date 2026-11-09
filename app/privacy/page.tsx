@@ -44,6 +44,11 @@ export default function PrivacyPage() {
       <h2 className="mb-2 mt-8 text-lg font-bold">5. 広告・トラッキング</h2>
       <p className="mb-4">本アプリは、広告を表示せず、広告目的のトラッキングを行いません。</p>
 
+      <h2 className="mb-2 mt-8 text-lg font-bold">5-2. アプリ内購入（採点し放題プラン）</h2>
+      <p className="mb-4">
+        本アプリには、月額500円の定期購入（自動更新）「採点し放題プラン」があります。お支払いはApp Store（Apple Inc.）またはGoogle Play（Google LLC）が処理し、当方はクレジットカード番号などの支払い情報を受け取りません。本アプリが端末の中に保存するのは「プランに加入しているかどうか」だけです。解約は各ストアの定期購入（サブスクリプション）の画面からいつでも行えます。
+      </p>
+
       <h2 className="mb-2 mt-8 text-lg font-bold">6. 端末内データの削除</h2>
       <p className="mb-4">
         お気に入りとして保存したデータは利用者の端末内に保存されています。アプリのデータ消去またはアンインストールにより削除できます。
@@ -60,7 +65,7 @@ export default function PrivacyPage() {
       <p className="mb-1">提供者：加藤 貴大</p>
       <p className="mb-4">メール：taka.sr01@gmail.com</p>
 
-      <p className="mt-10 text-xs text-gray-500">制定日：2026年8月26日</p>
+      <p className="mt-10 text-xs text-gray-500">制定日：2026年8月26日 ／ 改定日：2026年11月9日（アプリ内購入の項を追加）</p>
     </main>
   )
 }
