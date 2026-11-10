@@ -22,6 +22,7 @@ import AppUnavailable from '@/app/components/app-unavailable'
 import { API_KEY, APP_ID, APP_INFO, isShowPrompt, promptTemplate } from '@/config'
 import type { Annotation as AnnotationType } from '@/types/log'
 import { addFileInfos, sortAgentSorts } from '@/utils/tools'
+import { trackEvent } from '@/utils/track'
 
 const SCORING_COUNT_KEY = 'cosmosk_scoring_count'
 // v2: 表示条件を「2回目以降・点数条件つき」に直したので、旧条件(3回目・点数無関係)で使った分は数え直す
@@ -471,6 +472,10 @@ const Main: FC<IMainProps> = () => {
       notify({ type: 'info', message: t('app.errorMessage.waitForResponse') })
       return
     }
+
+    // Vercel Web Analytics: 「▶ 問題を出す」系のボタンが押された回数(ページ表示→最初のボタンまでの離脱を見る用)
+    if (message.trim() === '出題スタート') { trackEvent('start_clicked') }
+
     const toServerInputs: Record<string, any> = {}
     if (currInputs) {
       Object.keys(currInputs).forEach((key) => {

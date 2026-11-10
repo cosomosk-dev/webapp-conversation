@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Analytics } from '@vercel/analytics/next'
 import { getLocaleOnServer } from '@/i18n/server'
 
 import './styles/globals.css'
@@ -34,6 +35,8 @@ const LocaleLayout = async ({
             {children}
           </div>
         </div>
+        {/* Vercel Web Analytics: ページ表示回数の計測(Firebaseのfirst_openと比べて、開いた後に画面が出ているか確認する用) */}
+        <Analytics />
       </body>
     </html>
   )
