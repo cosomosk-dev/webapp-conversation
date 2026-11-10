@@ -532,6 +532,7 @@ const Chat: FC<IChatProps> = ({
   // 採点の見本(初めて開いた人に1回だけ自動で出す。ホームの「採点の見本を見る」からはいつでも開ける)
   const SAMPLE_KEY = 'cosmosk_sample_seen'
   const [showSample, setShowSample] = React.useState(false)
+  const [sampleScrolled, setSampleScrolled] = React.useState(false)
   useEffect(() => {
     try {
       if (localStorage.getItem(SAMPLE_KEY) !== null) { return }
@@ -548,12 +549,38 @@ const Chat: FC<IChatProps> = ({
   }
   const SAMPLE_GRADE: Grade = {
     total: 14,
-    rest: '',
+    rest: [
+      '### 講評',
+      '「誰を被告に」「何を請求するか」の2つを聞く問題です。詐害行為取消権を使うこと、贈与を取り消すことは書けているので、制度の選び方は合っています。落としたのは被告です。訴える相手は、財産を手放した債務者Bではなく、財産を受け取った受益者Cです。ここは平成29年の民法改正で条文に書かれた所で、本試験でも狙われます。もう1つ、「取り戻す」だけでは何を請求するのかが足りません。不動産なら「所有権移転登記の抹消」まで書いて満点です。',
+      '',
+      '### 満点へのひと言',
+      '「Bを被告として」を「Cを被告として」に、「甲土地を取り戻す」を「所有権移転登記の抹消を請求する」に直せば満点です。',
+      '',
+      '### 解答例(20点)',
+      '**Cを被告として、詐害行為取消権に基づき贈与の取消しと所有権移転登記の抹消を請求する。**(42字)',
+      '',
+      '### 解説',
+      '**1. 被告は誰か** — 民法424条の7第1項1号。受益者に対する詐害行為取消請求の訴えは、受益者を被告とします。債務者Bは被告になりません。その代わり、訴えを起こした債権者は、遅滞なく債務者に訴訟告知をしなければなりません(同条2項)。',
+      '',
+      '**2. 何を請求できるか** — 民法424条1項で行為の取消しを、424条の6第1項で、その行為によって受益者に移った財産の返還を、あわせて請求できます。不動産の贈与なら「贈与の取消し」と「所有権移転登記の抹消」の2つです。',
+      '',
+      '**3. 必ず裁判で** — 詐害行為取消権は、裁判所に請求する形でしか使えません(424条1項)。裁判の外でも使える債権者代位権(423条)との大きな違いです。',
+      '',
+      '**4. 登記は誰に戻るか** — 不動産はBの名義に戻るだけで、Aが自分に直接移せとは言えません。自分への直接の引渡しを求められるのは、金銭と動産だけです(424条の9第1項)。',
+      '',
+      '**5. いつまでに** — 債務者が債権者を害すると知って行為をしたことを、債権者が知った時から2年。行為の時から10年(426条)。',
+      '',
+      '### よくある誤答',
+      '- 債務者Bを被告にする(被告は受益者C)',
+      '- 「債権者代位権に基づき」と書く(制度が別です)',
+      '- 「贈与の取消し」だけで、登記の抹消(財産の返還)を落とす',
+      '- 「甲土地をAに移転せよ」と書く(不動産はBの名義に戻るだけ)',
+    ].join('\n'),
     items: [
-      { mark: 'ok', label: '「Y市長に対して」と記述していること', max: 8, got: 8 },
-      { mark: 'part', label: '「処分があったことを知った日」に触れていること', max: 4, got: 2, reason: '「処分の日」とあり、「知った日」になっていません。' },
-      { mark: 'ng', label: '「その翌日から起算して」との趣旨を記述していること', max: 4, got: 0, reason: 'いつから数えるか(起算点)が書かれていません。' },
-      { mark: 'ok', label: '「3か月以内に審査請求する」と記述していること', max: 4, got: 4 },
+      { mark: 'ng', label: '「Cを被告として」と記述していること', max: 4, got: 0, reason: '「Bを被告として」とあります。被告は受益者Cです。' },
+      { mark: 'ok', label: '「詐害行為取消権に基づき」と記述していること', max: 8, got: 8 },
+      { mark: 'ok', label: '「贈与の取消し」を請求する旨を記述していること', max: 4, got: 4 },
+      { mark: 'part', label: '「所有権移転登記の抹消」を請求する旨を記述していること', max: 4, got: 2, reason: '「取り戻す」とあるだけで、登記の抹消を請求することが書かれていません。' },
     ],
   }
   const daysToExam = (() => {
@@ -611,10 +638,10 @@ const Chat: FC<IChatProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setShowSample(true)}
+              onClick={() => { setSampleScrolled(false); setShowSample(true) }}
               className="mt-2 w-full rounded-full py-2 text-[12.5px] font-bold bg-white"
               style={{ border: '1px solid #e7e0d0', color: NAVY }}
-            >👀 書く前に、採点の見本を見る(10秒)</button>
+            >👀 書く前に、採点と解説の見本を見る</button>
             {examVisible && (
               <button
                 type="button"
@@ -675,23 +702,32 @@ const Chat: FC<IChatProps> = ({
         </div>
       )}
       {showSample && !showWhatsNew && !showPaywall && !hasUserMessage && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-4 py-6" onClick={closeSample}>
-          <div className="w-full max-w-sm max-h-full flex flex-col rounded-2xl overflow-hidden shadow-xl" style={{ background: CREAM }} onClick={e => e.stopPropagation()}>
-            <div className="shrink-0 px-5 pt-4 pb-3 text-center" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)' }}>
-              <div className="text-[11.5px] font-bold" style={{ color: GOLD_LIGHT }}>👀 採点の見本</div>
-              <div className="mt-0.5 text-[19px] font-bold" style={{ fontFamily: SERIF, color: '#f4e7c8' }}>40字書くと、こう採点されます</div>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto px-3.5 py-3">
-              <div className="rounded-xl bg-white px-3 py-2.5 text-[12.5px] leading-relaxed text-gray-700" style={{ border: '1px solid #e7e0d0' }}>
-                <div className="text-[11px] font-bold mb-0.5" style={{ color: GOLD }}>例題(行政不服審査法)</div>
-                Y市福祉事務所長から保育所の入所拒否処分を受けたXは、誰に対し、いつまでに審査請求をしなければならないか。
-                <div className="text-[11px] font-bold mt-2 mb-0.5" style={{ color: GOLD }}>答案の例</div>
-                <span className="font-bold" style={{ color: NAVY }}>Y市長に対し、処分の日から3か月以内に審査請求をしなければならない。</span>
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-3 py-4" onClick={closeSample}>
+          <div className="w-full max-w-sm h-full max-h-[720px] flex flex-col rounded-2xl overflow-hidden shadow-xl" style={{ background: CREAM }} onClick={e => e.stopPropagation()}>
+            <div className="shrink-0 px-4 pt-3.5 pb-3 text-center" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)' }}>
+              <div className="text-[11.5px] font-bold" style={{ color: GOLD_LIGHT }}>👀 採点と解説の見本</div>
+              <div className="mt-0.5 text-[18px] font-bold leading-snug" style={{ fontFamily: SERIF, color: '#f4e7c8' }}>40字書くと、ここまで返ってきます</div>
+              <div className="mt-2 grid grid-cols-4 gap-1 text-[10.5px] font-bold leading-tight">
+                {['20点満点\nで採点', '基準ごと\nの理由', '条文つき\nの解説', '解答例と\n誤答例'].map((t, i) => (
+                  <span key={i} className="rounded-lg py-1.5 whitespace-pre-line" style={{ background: 'rgba(241,215,154,.14)', color: GOLD_LIGHT, border: '1px solid rgba(241,215,154,.35)' }}>{t}</span>
+                ))}
               </div>
-              <div className="text-center text-[13px] my-1.5" style={{ color: GOLD }}>▼ AIが数秒で採点</div>
-              <GradeCard grade={SAMPLE_GRADE} />
-              <p className="mt-2 text-[11.5px] leading-relaxed text-gray-600">どこで点を落としたかが、基準ごとに分かります。実際の採点では、講評・解答例・よくある誤答も出ます。</p>
-              <p className="mt-1 text-[10.5px] text-gray-400">※これは表示の見本です。実際の点数は答案ごとにAIが採点します。</p>
+            </div>
+            <div className="relative flex-1 min-h-0">
+              <div className="h-full overflow-y-auto px-3.5 pt-3 pb-12" onScroll={(e) => { if (e.currentTarget.scrollTop > 40) { setSampleScrolled(true) } }}>
+                <div className="rounded-xl bg-white px-3 py-2.5 text-[12.5px] leading-relaxed text-gray-700" style={{ border: '1px solid #e7e0d0' }}>
+                  <div className="text-[11px] font-bold mb-0.5" style={{ color: GOLD }}>例題(民法・債権)</div>
+                  Aは、Bに1000万円を貸している。Bは、Aを害すると知りながら、唯一の財産である甲土地を、事情を知るCに贈与し、登記も移した。Aは、甲土地をBの財産に戻すため、誰を被告として、どのような権利に基づき、何を請求できるか。
+                  <div className="text-[11px] font-bold mt-2 mb-0.5" style={{ color: GOLD }}>答案の例</div>
+                  <span className="font-bold" style={{ color: NAVY }}>Bを被告として、詐害行為取消権に基づき贈与を取り消し、甲土地を取り戻す。</span>
+                </div>
+                <div className="text-center text-[13px] my-1.5" style={{ color: GOLD }}>▼ AIが数秒で採点して、解説まで書きます</div>
+                <GradeCard grade={SAMPLE_GRADE} />
+                <p className="mt-2 text-[10.5px] text-gray-400">※これは表示の見本です。実際の点数と解説は、答案ごとにAIが作ります。</p>
+              </div>
+              {!sampleScrolled && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 pt-8 pb-2 text-center text-[12.5px] font-bold" style={{ background: 'linear-gradient(180deg,rgba(246,243,236,0) 0%,#f6f3ec 55%)', color: NAVY }}>▼ 下に、講評・解説・解答例が続きます</div>
+              )}
             </div>
             <div className="shrink-0 bg-white px-4 pt-3 pb-3" style={{ borderTop: '1px solid #e7e0d0' }}>
               <button onClick={() => { closeSample(); suggestionClick('出題スタート') }} disabled={!!isResponding} className="w-full py-3 rounded-xl text-[15px] font-bold" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: GOLD_LIGHT }}>▶ 自分でも1問解く(無料)</button>
