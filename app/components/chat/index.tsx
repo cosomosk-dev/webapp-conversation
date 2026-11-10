@@ -7,7 +7,8 @@ import { useTranslation } from 'react-i18next'
 import Textarea from 'rc-textarea'
 import Answer from './answer'
 import Question from './question'
-import { CREAM, GOLD, GOLD_LIGHT, NAVY, SERIF, isQuestion } from '@/app/components/cosmos/cards'
+import { CREAM, GOLD, GOLD_LIGHT, GradeCard, NAVY, SERIF, isQuestion } from '@/app/components/cosmos/cards'
+import type { Grade } from '@/app/components/cosmos/cards'
 import type { FeedbackFunc } from './type'
 import type { ChatItem, VisionFile, VisionSettings } from '@/types/app'
 import { TransferMethod } from '@/types/app'
@@ -528,6 +529,33 @@ const Chat: FC<IChatProps> = ({
     catch { }
     setShowWhatsNew(false)
   }
+  // 採点の見本(初めて開いた人に1回だけ自動で出す。ホームの「採点の見本を見る」からはいつでも開ける)
+  const SAMPLE_KEY = 'cosmosk_sample_seen'
+  const [showSample, setShowSample] = React.useState(false)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(SAMPLE_KEY) !== null) { return }
+      const returning = ['cosmosk_free_used', 'cosmosk_grade_success', 'cosmosk_favs', 'cosmosk_premium', 'cosmosk_stats'].some(k => localStorage.getItem(k) !== null)
+      if (returning) { localStorage.setItem(SAMPLE_KEY, '1') }
+      else { setShowSample(true) }
+    }
+    catch { }
+  }, [])
+  const closeSample = () => {
+    try { localStorage.setItem(SAMPLE_KEY, '1') }
+    catch { }
+    setShowSample(false)
+  }
+  const SAMPLE_GRADE: Grade = {
+    total: 14,
+    rest: '',
+    items: [
+      { mark: 'ok', label: '「Y市長に対して」と記述していること', max: 8, got: 8 },
+      { mark: 'part', label: '「処分があったことを知った日」に触れていること', max: 4, got: 2, reason: '「処分の日」とあり、「知った日」になっていません。' },
+      { mark: 'ng', label: '「その翌日から起算して」との趣旨を記述していること', max: 4, got: 0, reason: 'いつから数えるか(起算点)が書かれていません。' },
+      { mark: 'ok', label: '「3か月以内に審査請求する」と記述していること', max: 4, got: 4 },
+    ],
+  }
   const daysToExam = (() => {
     const exam = new Date('2026-11-08T00:00:00+09:00').getTime()
     const d = Math.ceil((exam - Date.now()) / 86400000)
@@ -581,6 +609,12 @@ const Chat: FC<IChatProps> = ({
               </span>
               <span className="w-12 h-12 rounded-full flex items-center justify-center text-lg" style={{ background: GOLD_LIGHT, color: NAVY }}>▶</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setShowSample(true)}
+              className="mt-2 w-full rounded-full py-2 text-[12.5px] font-bold bg-white"
+              style={{ border: '1px solid #e7e0d0', color: NAVY }}
+            >👀 書く前に、採点の見本を見る(10秒)</button>
             {examVisible && (
               <button
                 type="button"
@@ -636,6 +670,32 @@ const Chat: FC<IChatProps> = ({
               </ul>
               <button onClick={() => { closeWhatsNew(); if (!hasUserMessage) { suggestionClick('出題スタート') } }} className="mt-4 w-full py-3 rounded-xl text-[14px] font-bold" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: GOLD_LIGHT }}>{hasUserMessage ? 'OK' : '▶ さっそく1問解く'}</button>
               <button onClick={closeWhatsNew} className="mt-2 w-full py-2 text-[12px] text-gray-500">閉じる</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showSample && !showWhatsNew && !showPaywall && !hasUserMessage && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-4 py-6" onClick={closeSample}>
+          <div className="w-full max-w-sm max-h-full flex flex-col rounded-2xl overflow-hidden shadow-xl" style={{ background: CREAM }} onClick={e => e.stopPropagation()}>
+            <div className="shrink-0 px-5 pt-4 pb-3 text-center" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)' }}>
+              <div className="text-[11.5px] font-bold" style={{ color: GOLD_LIGHT }}>👀 採点の見本</div>
+              <div className="mt-0.5 text-[19px] font-bold" style={{ fontFamily: SERIF, color: '#f4e7c8' }}>40字書くと、こう採点されます</div>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-3.5 py-3">
+              <div className="rounded-xl bg-white px-3 py-2.5 text-[12.5px] leading-relaxed text-gray-700" style={{ border: '1px solid #e7e0d0' }}>
+                <div className="text-[11px] font-bold mb-0.5" style={{ color: GOLD }}>例題(行政不服審査法)</div>
+                Y市福祉事務所長から保育所の入所拒否処分を受けたXは、誰に対し、いつまでに審査請求をしなければならないか。
+                <div className="text-[11px] font-bold mt-2 mb-0.5" style={{ color: GOLD }}>答案の例</div>
+                <span className="font-bold" style={{ color: NAVY }}>Y市長に対し、処分の日から3か月以内に審査請求をしなければならない。</span>
+              </div>
+              <div className="text-center text-[13px] my-1.5" style={{ color: GOLD }}>▼ AIが数秒で採点</div>
+              <GradeCard grade={SAMPLE_GRADE} />
+              <p className="mt-2 text-[11.5px] leading-relaxed text-gray-600">どこで点を落としたかが、基準ごとに分かります。実際の採点では、講評・解答例・よくある誤答も出ます。</p>
+              <p className="mt-1 text-[10.5px] text-gray-400">※これは表示の見本です。実際の点数は答案ごとにAIが採点します。</p>
+            </div>
+            <div className="shrink-0 bg-white px-4 pt-3 pb-3" style={{ borderTop: '1px solid #e7e0d0' }}>
+              <button onClick={() => { closeSample(); suggestionClick('出題スタート') }} disabled={!!isResponding} className="w-full py-3 rounded-xl text-[15px] font-bold" style={{ background: 'linear-gradient(160deg,#0f1d38 0%,#1b3160 100%)', color: GOLD_LIGHT }}>▶ 自分でも1問解く(無料)</button>
+              <button onClick={closeSample} className="mt-1 w-full py-1.5 text-[12px] text-gray-500">あとで</button>
             </div>
           </div>
         </div>
