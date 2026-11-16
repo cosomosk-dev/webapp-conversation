@@ -943,7 +943,7 @@ const Chat: FC<IChatProps> = ({
                   ))}
                 </ol>
               </div>
-              <div className="mt-3 text-[10.5px] leading-[1.7] text-gray-400">注記: 速報版の予想採点です(各予備校の模範解答ベース)。確定版は11/22<br />※AIによる採点のため、不正確な場合があります。無料枠は消費しません。</div>
+              <div className="mt-3 text-[10.5px] leading-[1.7] text-gray-400">注記: 確定版の予想採点です(各予備校の予想配点ベース)。公式の配点・採点基準は公表されていません<br />※AIによる採点のため、不正確な場合があります。無料枠は消費しません。</div>
             </div>
           </div>
           <div className="shrink-0 pt-2 bg-white" style={{ borderTop: '1px solid #e7e0d0', paddingBottom: keyboardOffset > 0 ? '8px' : 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}>
