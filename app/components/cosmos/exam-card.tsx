@@ -135,7 +135,7 @@ export const ExamResultCard: FC<{
     <div className="mt-3 rounded-2xl bg-white border p-4" style={{ borderColor: GOLD, boxShadow: '0 10px 30px rgba(15,29,56,.10)' }}>
       <div className="flex items-center justify-between">
         <div className="text-[15px] font-bold" style={{ fontFamily: SERIF, color: NAVY }}>📝 本試験 記述式の予想</div>
-        <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#f3ead6', color: '#7a5b22' }}>速報版</span>
+        <span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#f3ead6', color: '#7a5b22' }}>確定版</span>
       </div>
 
       <div className="grid grid-cols-3 gap-2 mt-3">
@@ -198,7 +198,7 @@ export const ExamResultCard: FC<{
       {showReview && (
         <div className="mt-3 rounded-xl px-3 py-3 text-center" style={{ background: CREAM, border: `1px solid ${GOLD}` }}>
           <div className="text-[13px] font-bold" style={{ color: NAVY }}>本試験の採点、役に立ちましたか？</div>
-          <div className="text-[11.5px] text-gray-600 mt-1 leading-[1.6]">登録不要・無料で使える速報採点です。<br />★で応援してもらえると、来年の受験生にも届きます</div>
+          <div className="text-[11.5px] text-gray-600 mt-1 leading-[1.6]">登録不要・無料で使える予想採点です(確定版)。<br />★で応援してもらえると、来年の受験生にも届きます</div>
           <a
             href={storeUrl}
             target="_blank"
@@ -210,7 +210,7 @@ export const ExamResultCard: FC<{
           </a>
         </div>
       )}
-      <div className="mt-2 text-[10.5px] leading-[1.7] text-gray-400">※AIによる予想採点のため、実際の得点とは異なる場合があります。注記: 速報版の予想採点です(各予備校の模範解答ベース)。確定版は11/22</div>
+      <div className="mt-2 text-[10.5px] leading-[1.7] text-gray-400">※AIによる予想採点のため、実際の得点とは異なる場合があります。注記: 確定版の予想採点です(各予備校の予想配点ベース)。公式の配点・採点基準は公表されていません。</div>
     </div>
   )
 }
