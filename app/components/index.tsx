@@ -26,7 +26,12 @@ import { trackEvent } from '@/utils/track'
 
 const SCORING_COUNT_KEY = 'cosmosk_scoring_count'
 // v2: 表示条件を「2回目以降・点数条件つき」に直したので、旧条件(3回目・点数無関係)で使った分は数え直す
-const REVIEW_REQUESTED_KEY = 'cosmosk_review_requested_v2'
+const REVIEW_REQUESTED_KEY = 'cosmosk_review_requested_v2' // 前の版(1インストール1回だけ)の印。読むだけ
+// 2026/11/20 1回きり→定期的に: 前回から60日以上あける・直近365日で3回まで(Appleの上限が「365日で3回」)
+const REVIEW_ASKS_KEY = 'cosmosk_review_asks' // 出した時刻(ミリ秒)の配列
+const REVIEW_GAP_DAYS = 60
+const REVIEW_MAX_PER_YEAR = 3
+const DAY_MS = 24 * 60 * 60 * 1000
 const SCORING_TRIGGER_COUNT = 2 // 1回目の採点では出さない
 const REVIEW_MIN_SCORE = 15 // 20点満点中、この点数以上を取った回にだけ出す(12→15に変更、2026/10/14)
 
@@ -439,8 +444,23 @@ const Main: FC<IMainProps> = () => {
     } catch { }
   }
 
-  // Google Playの評価ポップアップ(In-App Review)。アプリ版のみ・1インストール1回だけ依頼する
+  // Google Playの評価ポップアップ(In-App Review)。アプリ版のみ
   // 条件: 2回目以降の採点が正常に終わり、その回が15点以上のとき(15点未満なら次に15点以上を取った回へ持ち越し)
+  // 回数: 前回から60日以上あけて、直近365日で3回まで(定期的に続く。2026/11/20に1回きりから変更)
+  const readReviewAsks = (now: number): number[] => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(REVIEW_ASKS_KEY) || 'null')
+      if (Array.isArray(saved)) { return saved.filter((n: unknown) => typeof n === 'number') }
+    }
+    catch { }
+    // 前の版で1回出した人は、いま出したことにして60日あける
+    return localStorage.getItem(REVIEW_REQUESTED_KEY) === '1' ? [now] : []
+  }
+  const reviewAllowed = (asks: number[], now: number): boolean => {
+    const last = asks.length > 0 ? asks[asks.length - 1] : 0
+    if (now - last < REVIEW_GAP_DAYS * DAY_MS) { return false }
+    return asks.filter(t => now - t < 365 * DAY_MS).length < REVIEW_MAX_PER_YEAR
+  }
   const handleScoringReviewCheck = (userMessage: string, answerText: string) => {
     if (userMessage.trim() === '出題スタート') { return }
 
@@ -448,13 +468,18 @@ const Main: FC<IMainProps> = () => {
       const currentCount = parseInt(localStorage.getItem(SCORING_COUNT_KEY) || '0', 10) + 1
       localStorage.setItem(SCORING_COUNT_KEY, String(currentCount))
 
-      if (localStorage.getItem(REVIEW_REQUESTED_KEY) === '1') { return }
+      const now = Date.now()
+      const asks = readReviewAsks(now)
+      if (!reviewAllowed(asks, now)) {
+        localStorage.setItem(REVIEW_ASKS_KEY, JSON.stringify(asks))
+        return
+      }
       const score = readScore(answerText)
       if (currentCount < SCORING_TRIGGER_COUNT || score < REVIEW_MIN_SCORE || score > 20) { return }
 
       const w = window as any
       if (typeof w.CosmosBilling?.requestInAppReview === 'function') {
-        localStorage.setItem(REVIEW_REQUESTED_KEY, '1')
+        localStorage.setItem(REVIEW_ASKS_KEY, JSON.stringify([...asks, now].slice(-10)))
         // 点数を見てもらってから出す
         setTimeout(() => {
           try { w.CosmosBilling.requestInAppReview() }
